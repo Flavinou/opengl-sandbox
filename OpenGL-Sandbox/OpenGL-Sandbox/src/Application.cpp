@@ -55,30 +55,26 @@ int main()
     // Renderer data
     float vertices[] =
     {
-         0.5f,  0.5f, 0.0f, // top right
-         0.5f, -0.5f, 0.0f, // bottom right
-        -0.5f, -0.5f, 0.0f, // bottom left
-        -0.5f,  0.5f, 0.0f  // top left
-    };
-    unsigned int indices[] =
-    {
-        0, 1, 3, // first triangle
-        1, 2, 3  // second triangle
+        // first triangle
+        -0.5f,  0.5f, 0.0f, // top 0
+         0.0f, -0.5f, 0.0f, // bottom right 0
+        -1.0f, -0.5f, 0.0f, // bottom left 0
+        
+        // second triangle
+         0.5f,  0.5f, 0.0f, // top 1
+         1.0f, -0.5f, 0.0f, // bottom right 1
+         0.0f, -0.5f, 0.0f  // bottom left 1
     };
 
-    unsigned int VAO, VBO, EBO;
+    unsigned int VAO, VBO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
 
     // Bind the vertex array first as container for the element and vertex buffer objects
     glBindVertexArray(VAO);
 
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
     // Configure vertex attributes (memory layout)
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)nullptr);
@@ -99,8 +95,8 @@ int main()
 
         glUseProgram(shaderProgram);
         glBindVertexArray(VAO);
-        // glDrawArrays(GL_TRIANGLES, 0, 6); // solution when we draw each vertex one-by-one
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr); // solution using index buffer and reuse the same set of vertices multiple times
+        glDrawArrays(GL_TRIANGLES, 0, 6); // solution when we draw each vertex one-by-one
+        // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr); // solution using index buffer and reuse the same set of vertices multiple times
         // glBindVertexArray(0); // no need to unbind VAO each time as there is only one at the moment
 
         glfwSwapBuffers(window);
@@ -110,7 +106,6 @@ int main()
     // Resource deallocation
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &EBO);
     glDeleteProgram(shaderProgram);
 
     glfwTerminate();
