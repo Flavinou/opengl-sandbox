@@ -53,28 +53,38 @@ int main()
     GLuint shaderProgram = setupShaders("resources/shaders/Vertex.glsl", "resources/shaders/Fragment.glsl");
 
     // Renderer data
-    float vertices[] =
+    float vertices_first_triangle[] =
     {
-        // first triangle
-        -0.5f,  0.5f, 0.0f, // top 0
-         0.0f, -0.5f, 0.0f, // bottom right 0
-        -1.0f, -0.5f, 0.0f, // bottom left 0
-        
-        // second triangle
-         0.5f,  0.5f, 0.0f, // top 1
-         1.0f, -0.5f, 0.0f, // bottom right 1
-         0.0f, -0.5f, 0.0f  // bottom left 1
+        -0.5f,  0.5f, 0.0f, // top
+         0.0f, -0.5f, 0.0f, // bottom right
+        -1.0f, -0.5f, 0.0f, // bottom left
     };
 
-    unsigned int VAO, VBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
+    float vertices_second_triangle[] =
+    {
+         0.5f,  0.5f, 0.0f, // top
+         1.0f, -0.5f, 0.0f, // bottom right
+         0.0f, -0.5f, 0.0f  // bottom left
+    };
+
+    unsigned int VAOs[2], VBOs[2];
+    glGenVertexArrays(2, VAOs);
+    glGenBuffers(2, VBOs);
 
     // Bind the vertex array first as container for the element and vertex buffer objects
-    glBindVertexArray(VAO);
+    glBindVertexArray(VAOs[0]);
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, VBOs[0]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices_first_triangle), vertices_first_triangle, GL_STATIC_DRAW);
+
+    // Configure vertex attributes (memory layout)
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)nullptr);
+    glEnableVertexAttribArray(0);
+
+    glBindVertexArray(VAOs[1]);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBOs[1]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices_second_triangle), vertices_second_triangle, GL_STATIC_DRAW);
 
     // Configure vertex attributes (memory layout)
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)nullptr);
@@ -94,8 +104,11 @@ int main()
         // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
         glUseProgram(shaderProgram);
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6); // solution when we draw each vertex one-by-one
+        glBindVertexArray(VAOs[0]);
+        glDrawArrays(GL_TRIANGLES, 0, 3); // solution when we draw each vertex one-by-one        
+        
+        glBindVertexArray(VAOs[1]);
+        glDrawArrays(GL_TRIANGLES, 0, 3); // solution when we draw each vertex one-by-one
         // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr); // solution using index buffer and reuse the same set of vertices multiple times
         // glBindVertexArray(0); // no need to unbind VAO each time as there is only one at the moment
 
@@ -104,8 +117,8 @@ int main()
     }
 
     // Resource deallocation
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
+    glDeleteVertexArrays(2, VAOs);
+    glDeleteBuffers(2, VBOs);
     glDeleteProgram(shaderProgram);
 
     glfwTerminate();
