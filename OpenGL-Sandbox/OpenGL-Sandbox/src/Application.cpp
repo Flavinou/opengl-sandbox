@@ -103,7 +103,7 @@ int main()
             float timeValue = glfwGetTime();
             float greenValue = (sin(timeValue) / 2.0f) + 0.5f;
 
-            shader.SetUniform4f("u_Color", 0.0f, greenValue, 0.0f, 1.0f);
+            shader.SetUniformFloat("u_HorizontalOffset", 0.5f);
 
             // Render the geometry
             glBindVertexArray(VAO);
