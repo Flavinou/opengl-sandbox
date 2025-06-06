@@ -25,5 +25,6 @@
   <ItemGroup>
     <None Include="resources\shaders\Vertex.glsl" />
     <None Include="resources\shaders\Fragment.glsl" />
+    <None Include="resources\shaders\FragmentRed.glsl" />
   </ItemGroup>
 </Project>

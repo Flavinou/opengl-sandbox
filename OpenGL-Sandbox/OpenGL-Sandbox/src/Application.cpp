@@ -51,6 +51,7 @@ int main()
 
     // Create shader program
     GLuint shaderProgram = setupShaders("resources/shaders/Vertex.glsl", "resources/shaders/Fragment.glsl");
+    GLuint redShaderProgram = setupShaders("resources/shaders/Vertex.glsl", "resources/shaders/FragmentRed.glsl");
 
     // Renderer data
     float vertices_first_triangle[] =
@@ -107,8 +108,10 @@ int main()
         glBindVertexArray(VAOs[0]);
         glDrawArrays(GL_TRIANGLES, 0, 3); // solution when we draw each vertex one-by-one        
         
+        glUseProgram(redShaderProgram);
         glBindVertexArray(VAOs[1]);
         glDrawArrays(GL_TRIANGLES, 0, 3); // solution when we draw each vertex one-by-one
+
         // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr); // solution using index buffer and reuse the same set of vertices multiple times
         // glBindVertexArray(0); // no need to unbind VAO each time as there is only one at the moment
 
