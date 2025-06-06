@@ -1,3 +1,5 @@
+#include "Shader.h"
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -13,12 +15,6 @@ const unsigned int SCREEN_HEIGHT = 600;
 // User input
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
-
-// OpenGL Utilities
-GLuint setupShaders(const std::string& vertexSourcePath, const std::string& fragmentSourcePath);
-
-// File Utilities
-std::string loadFile(const std::string& filePath);
 
 int main()
 {
@@ -49,69 +45,81 @@ int main()
         return -1;
     }
 
-    // Create shader program
-    GLuint shaderProgram = setupShaders("resources/shaders/Vertex.glsl", "resources/shaders/Fragment.glsl");
-
-    // Renderer data
-    float vertices[] =
     {
-         0.5f,  0.5f, 0.0f, // top right
-         0.5f, -0.5f, 0.0f, // bottom right
-        -0.5f, -0.5f, 0.0f, // bottom left
-        -0.5f,  0.5f, 0.0f  // top left
-    };
-    unsigned int indices[] =
-    {
-        0, 1, 3, // first triangle
-        1, 2, 3  // second triangle
-    };
+        // Create shader program
+        Shader shader("resources/shaders/Vertex.glsl", "resources/shaders/Fragment.glsl");
 
-    unsigned int VAO, VBO, EBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
+        // Renderer data
+        float vertices[] =
+        {   // positions            // colors
+             0.0f,  0.5f, 0.0f,     0.0f, 0.0f, 1.0f, // top
+             0.5f, -0.5f, 0.0f,     1.0f, 0.0f, 0.0f, // bottom right
+            -0.5f, -0.5f, 0.0f,     0.0f, 1.0f, 0.0f, // bottom left 
+        };
+        unsigned int indices[] =
+        {
+            0, 1, 2, // first triangle
+        };
 
-    // Bind the vertex array first as container for the element and vertex buffer objects
-    glBindVertexArray(VAO);
+        unsigned int VAO, VBO, EBO;
+        glGenVertexArrays(1, &VAO);
+        glGenBuffers(1, &VBO);
+        glGenBuffers(1, &EBO);
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-    // Configure vertex attributes (memory layout)
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)nullptr);
-    glEnableVertexAttribArray(0);
-
-    // Render loop
-    while (!glfwWindowShouldClose(window))
-    {
-        // Handle user input
-        processInput(window);
-
-        // Rendering anything happens here
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        // Wireframe mode
-        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-        glUseProgram(shaderProgram);
+        // Bind the vertex array first as container for the element and vertex buffer objects
         glBindVertexArray(VAO);
-        // glDrawArrays(GL_TRIANGLES, 0, 6); // solution when we draw each vertex one-by-one
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr); // solution using index buffer and reuse the same set of vertices multiple times
-        // glBindVertexArray(0); // no need to unbind VAO each time as there is only one at the moment
 
-        glfwSwapBuffers(window);
-        glfwPollEvents();
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+        // Configure vertex attributes (memory layout)
+        // position attribute
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)nullptr);
+        glEnableVertexAttribArray(0);
+        // color attribute
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(1);
+
+        // Render loop
+        while (!glfwWindowShouldClose(window))
+        {
+            // Handle user input
+            processInput(window);
+
+            // Rendering anything happens here
+            glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+
+            // Wireframe mode
+            // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+            // Bind the shader
+            shader.Use();
+        
+            // Update the uniform color
+            float timeValue = glfwGetTime();
+            float greenValue = (sin(timeValue) / 2.0f) + 0.5f;
+
+            shader.SetUniform4f("u_Color", 0.0f, greenValue, 0.0f, 1.0f);
+
+            // Render the geometry
+            glBindVertexArray(VAO);
+            // glDrawArrays(GL_TRIANGLES, 0, 6); // solution when we draw each vertex one-by-one
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr); // solution using index buffer and reuse the same set of vertices multiple times
+            // glBindVertexArray(0); // no need to unbind VAO each time as there is only one at the moment
+
+            glfwSwapBuffers(window);
+            glfwPollEvents();
+        }
+
+        // Resource deallocation
+        glDeleteVertexArrays(1, &VAO);
+        glDeleteBuffers(1, &VBO);
+        glDeleteBuffers(1, &EBO);
     }
-
-    // Resource deallocation
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &EBO);
-    glDeleteProgram(shaderProgram);
 
     glfwTerminate();
 
@@ -129,88 +137,4 @@ void processInput(GLFWwindow* window)
     {
         glfwSetWindowShouldClose(window, true);
     }
-}
-
-GLuint setupShaders(const std::string& vertexSourcePath, const std::string& fragmentSourcePath)
-{
-    // Vertex shader
-    std::string vertexShaderSource = loadFile(vertexSourcePath);
-    const char* vertSrc = vertexShaderSource.c_str();
-
-    GLuint vertexShader;
-    vertexShader = glCreateShader(GL_VERTEX_SHADER);
-
-    glShaderSource(vertexShader, 1, &vertSrc, nullptr);
-    glCompileShader(vertexShader);
-
-    // Vertex shader compilation errors
-    GLint success;
-    GLchar infoLog[512];
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(vertexShader, 512, nullptr, infoLog);
-        std::cerr << "[ERROR]: Vertex shader compilation failed: " << infoLog << std::endl;
-    }
-
-    // Fragment shader
-    std::string fragmentShaderSource = loadFile(fragmentSourcePath);
-    const char* fragSrc = fragmentShaderSource.c_str();
-
-    GLuint fragmentShader;
-    fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-
-    glShaderSource(fragmentShader, 1, &fragSrc, nullptr);
-    glCompileShader(fragmentShader);
-
-    // Fragment shader compilation errors
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(fragmentShader, 512, nullptr, infoLog);
-        std::cerr << "[ERROR]: Fragment shader compilation failed: " << infoLog << std::endl;
-    }
-
-    // Link shaders together
-    GLuint shaderProgram;
-    shaderProgram = glCreateProgram();
-
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-
-    // Check for shader linking errors
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-    if (!success)
-    {
-        glGetProgramInfoLog(shaderProgram, 512, nullptr, infoLog);
-        std::cerr << "[ERROR]: Shaders linking failed: " << infoLog << std::endl;
-    }
-
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-
-    return shaderProgram;
-}
-
-std::string loadFile(const std::string& filePath)
-{
-    std::ifstream fileStream(filePath, std::ifstream::in);
-
-    if (!fileStream.is_open())
-    {
-        std::cerr << "Failed to open file: " << filePath << std::endl;
-        return {};
-    }
-
-    std::string line;
-    std::stringstream outStream;
-    while (std::getline(fileStream, line))
-    {
-        outStream << line << std::endl;
-    }
-
-    fileStream.close();
-
-    return outStream.str();
 }
