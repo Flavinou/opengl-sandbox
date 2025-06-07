@@ -104,8 +104,10 @@ int main()
 
         // Transformation experiments
         glm::mat4 transform = glm::mat4(1.0f);
-        transform = glm::translate(transform, glm::vec3(0.5f, -0.5f, 0.0f));
         transform = glm::rotate(transform, timeValue, glm::vec3(0.0f, 0.0f, 1.0f));
+        transform = glm::translate(transform, glm::vec3(0.5f, -0.5f, 0.0f));
+		// Matrices operations are applied in reverse order, so the translation happens first, then the rotation
+		// resulting in a rotation around the point (0.5, -0.5) instead of the origin (thanks Copilot for making me gain time when typing this !)
 
         // Handle user input
         processInput(window);
