@@ -1,4 +1,5 @@
 #include "Shader.h"
+#include "Texture.h"
 
 #include <iostream>
 #include <fstream>
@@ -7,6 +8,7 @@
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <stb_image/stb_image.h>
 
 // Settings 
 const unsigned int SCREEN_WIDTH = 800;
@@ -45,81 +47,95 @@ int main()
         return -1;
     }
 
+    // Create shader
+    Shader shader("resources/shaders/Vertex.glsl", "resources/shaders/Fragment.glsl");
+
+    // Create texture
+    Texture woodenTexture("resources/textures/wooden_container.jpg");
+	Texture awesomeFaceTexture("resources/textures/awesomeface.png");
+
+    // Renderer data
+    float vertices[] =
+	{   // positions            // colors            // texture coords
+         0.5f,  0.5f, 0.0f,     0.0f, 0.0f, 1.0f,    1.0f, 1.0f, // top right
+         0.5f, -0.5f, 0.0f,     1.0f, 0.0f, 0.0f,    1.0f, 0.0f, // bottom right
+        -0.5f, -0.5f, 0.0f,     0.0f, 1.0f, 0.0f,    0.0f, 0.0f, // bottom left 
+		-0.5f,  0.5f, 0.0f,     1.0f, 1.0f, 0.0f,    0.0f, 1.0f  // top left
+    };
+    unsigned int indices[] =
     {
-        // Create shader program
-        Shader shader("resources/shaders/Vertex.glsl", "resources/shaders/Fragment.glsl");
+        0, 1, 3, // first triangle
+		1, 2, 3  // second triangle
+    };
 
-        // Renderer data
-        float vertices[] =
-        {   // positions            // colors
-             0.0f,  0.5f, 0.0f,     0.0f, 0.0f, 1.0f, // top
-             0.5f, -0.5f, 0.0f,     1.0f, 0.0f, 0.0f, // bottom right
-            -0.5f, -0.5f, 0.0f,     0.0f, 1.0f, 0.0f, // bottom left 
-        };
-        unsigned int indices[] =
-        {
-            0, 1, 2, // first triangle
-        };
+    unsigned int VAO, VBO, EBO;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glGenBuffers(1, &EBO);
 
-        unsigned int VAO, VBO, EBO;
-        glGenVertexArrays(1, &VAO);
-        glGenBuffers(1, &VBO);
-        glGenBuffers(1, &EBO);
+    // Bind the vertex array first as container for the element and vertex buffer objects
+    glBindVertexArray(VAO);
 
-        // Bind the vertex array first as container for the element and vertex buffer objects
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+    // Configure vertex attributes (memory layout)
+    // position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)nullptr);
+    glEnableVertexAttribArray(0);
+    // color attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+	// texture coordinate attribute
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+	glEnableVertexAttribArray(2);
+
+    // Render loop
+    while (!glfwWindowShouldClose(window))
+    {
+        // Handle user input
+        processInput(window);
+
+        // Rendering anything happens here
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        // Wireframe mode
+        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+		// Bind the texture
+		woodenTexture.Bind();
+		awesomeFaceTexture.Bind(1); // Bind the second texture to texture unit 1
+
+        // Bind the shader
+        shader.Use();
+         
+        // Update the uniform color
+        float timeValue = glfwGetTime();
+        float colorValue = (sin(timeValue) / 2.0f) + 0.5f;
+        shader.SetUniform4f("u_Color", colorValue, colorValue, colorValue, 1.0f);
+		shader.SetUniformInt("u_Texture1", 0); // Set the first texture to texture unit 0
+		shader.SetUniformInt("u_Texture2", 1); // Set the second texture to texture unit 1
+
+		// Bind the vertex array object
         glBindVertexArray(VAO);
 
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        // Render the geometry
+        // glDrawArrays(GL_TRIANGLES, 0, 6); // solution when we draw each vertex one-by-one
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr); // solution using index buffer and reuse the same set of vertices multiple times
+        // glBindVertexArray(0); // no need to unbind VAO each time as there is only one at the moment
 
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-        // Configure vertex attributes (memory layout)
-        // position attribute
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)nullptr);
-        glEnableVertexAttribArray(0);
-        // color attribute
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(1);
-
-        // Render loop
-        while (!glfwWindowShouldClose(window))
-        {
-            // Handle user input
-            processInput(window);
-
-            // Rendering anything happens here
-            glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT);
-
-            // Wireframe mode
-            // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-            // Bind the shader
-            shader.Use();
-        
-            // Update the uniform color
-            float timeValue = glfwGetTime();
-            float greenValue = (sin(timeValue) / 2.0f) + 0.5f;
-
-            shader.SetUniform4f("u_Color", 0.0f, greenValue, 0.0f, 1.0f);
-
-            // Render the geometry
-            glBindVertexArray(VAO);
-            // glDrawArrays(GL_TRIANGLES, 0, 6); // solution when we draw each vertex one-by-one
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr); // solution using index buffer and reuse the same set of vertices multiple times
-            // glBindVertexArray(0); // no need to unbind VAO each time as there is only one at the moment
-
-            glfwSwapBuffers(window);
-            glfwPollEvents();
-        }
-
-        // Resource deallocation
-        glDeleteVertexArrays(1, &VAO);
-        glDeleteBuffers(1, &VBO);
-        glDeleteBuffers(1, &EBO);
+        glfwSwapBuffers(window);
+        glfwPollEvents();
     }
+
+    // Resource deallocation
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
+    glDeleteBuffers(1, &EBO);
 
     glfwTerminate();
 
