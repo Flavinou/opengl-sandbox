@@ -10,6 +10,7 @@ public:
 	void Unbind() const;
 
 	void SetWrapMode(int wrapS, int wrapT) const;
+	void SetFilterMode(int minFilter, int magFilter) const;
 
 	unsigned int GetWidth() const { return m_Width; }
 	unsigned int GetHeight() const { return m_Height; }
