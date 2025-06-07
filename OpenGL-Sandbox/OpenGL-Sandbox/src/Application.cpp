@@ -99,12 +99,12 @@ int main()
     // Render loop
     while (!glfwWindowShouldClose(window))
     {
-        float timeValue = glfwGetTime();
-        float colorValue = (sin(timeValue) / 2.0f) + 0.5f;
+        float time = glfwGetTime();
+        float timeValue = (sin(time) / 2.0f) + 0.5f;
 
         // Transformation experiments
         glm::mat4 transform = glm::mat4(1.0f);
-        transform = glm::rotate(transform, timeValue, glm::vec3(0.0f, 0.0f, 1.0f));
+        transform = glm::rotate(transform, time, glm::vec3(0.0f, 0.0f, 1.0f));
         transform = glm::translate(transform, glm::vec3(0.5f, -0.5f, 0.0f));
 		// Matrices operations are applied in reverse order, so the translation happens first, then the rotation
 		// resulting in a rotation around the point (0.5, -0.5) instead of the origin (thanks Copilot for making me gain time when typing this !)
@@ -127,7 +127,7 @@ int main()
         shader.Use();
          
         // Update the uniform color
-        shader.SetUniform4f("u_Color", colorValue, colorValue, colorValue, 1.0f);
+        shader.SetUniform4f("u_Color", timeValue, timeValue, timeValue, 1.0f);
 		shader.SetUniformInt("u_Texture1", 0); // Set the first texture to texture unit 0
 		shader.SetUniformInt("u_Texture2", 1); // Set the second texture to texture unit 1
 		shader.SetUniformMat4f("u_Transform", glm::value_ptr(transform)); // Pass the transformation matrix to the shader
@@ -137,6 +137,14 @@ int main()
 
         // Render the geometry
         // glDrawArrays(GL_TRIANGLES, 0, 6); // solution when we draw each vertex one-by-one
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr); // solution using index buffer and reuse the same set of vertices multiple times
+
+        transform = glm::mat4(1.0f);
+        transform = glm::scale(transform, glm::vec3(timeValue));
+        transform = glm::translate(transform, glm::vec3(-0.5f, 0.5f, 0.0f));
+
+		shader.SetUniformMat4f("u_Transform", glm::value_ptr(transform)); // Pass the transformation matrix to the shader
+
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr); // solution using index buffer and reuse the same set of vertices multiple times
         // glBindVertexArray(0); // no need to unbind VAO each time as there is only one at the moment
 
