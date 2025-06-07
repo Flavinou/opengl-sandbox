@@ -9,6 +9,8 @@ public:
 	void Bind(unsigned int slot = 0) const;
 	void Unbind() const;
 
+	void SetWrapMode(int wrapS, int wrapT) const;
+
 	unsigned int GetWidth() const { return m_Width; }
 	unsigned int GetHeight() const { return m_Height; }
 private:

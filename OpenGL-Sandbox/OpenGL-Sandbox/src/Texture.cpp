@@ -65,3 +65,9 @@ void Texture::Unbind() const
 {
 	glBindTexture(GL_TEXTURE_2D, 0);
 }
+
+void Texture::SetWrapMode(int wrapS, int wrapT) const
+{
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (GLint)wrapS);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (GLint)wrapT);
+}
