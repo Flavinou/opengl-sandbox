@@ -69,6 +69,11 @@ void Shader::SetUniform4f(const std::string& name, float v0, float v1, float v2,
     glUniform4f(glGetUniformLocation(m_ID, name.c_str()), v0, v1, v2, v3);
 }
 
+void Shader::SetUniformMat4f(const std::string& name, const float* value)
+{
+	glUniformMatrix4fv(glGetUniformLocation(m_ID, name.c_str()), 1, GL_FALSE, value);
+}
+
 unsigned int Shader::CreateShader(const std::string& vertexSource, const std::string& fragmentSource)
 {
     // Vertex shader

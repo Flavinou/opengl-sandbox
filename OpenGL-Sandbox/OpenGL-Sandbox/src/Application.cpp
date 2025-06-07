@@ -8,6 +8,9 @@
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <stb_image/stb_image.h>
 
 // Settings 
@@ -96,6 +99,14 @@ int main()
     // Render loop
     while (!glfwWindowShouldClose(window))
     {
+        float timeValue = glfwGetTime();
+        float colorValue = (sin(timeValue) / 2.0f) + 0.5f;
+
+        // Transformation experiments
+        glm::mat4 transform = glm::mat4(1.0f);
+        transform = glm::translate(transform, glm::vec3(0.5f, -0.5f, 0.0f));
+        transform = glm::rotate(transform, timeValue, glm::vec3(0.0f, 0.0f, 1.0f));
+
         // Handle user input
         processInput(window);
 
@@ -114,11 +125,10 @@ int main()
         shader.Use();
          
         // Update the uniform color
-        float timeValue = glfwGetTime();
-        float colorValue = (sin(timeValue) / 2.0f) + 0.5f;
         shader.SetUniform4f("u_Color", colorValue, colorValue, colorValue, 1.0f);
 		shader.SetUniformInt("u_Texture1", 0); // Set the first texture to texture unit 0
 		shader.SetUniformInt("u_Texture2", 1); // Set the second texture to texture unit 1
+		shader.SetUniformMat4f("u_Transform", glm::value_ptr(transform)); // Pass the transformation matrix to the shader
 
 		// Bind the vertex array object
         glBindVertexArray(VAO);
