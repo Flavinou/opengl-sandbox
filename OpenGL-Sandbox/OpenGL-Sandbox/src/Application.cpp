@@ -18,6 +18,9 @@ const unsigned int SCREEN_HEIGHT = 600;
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 
+// Global uniforms
+float u_Amount = 0.2f; // Amount of texture blending, can be set from user input or animation
+
 int main()
 {
     glfwInit();
@@ -123,6 +126,7 @@ int main()
         shader.SetUniform4f("u_Color", colorValue, colorValue, colorValue, 1.0f);
 		shader.SetUniformInt("u_Texture1", 0); // Set the first texture to texture unit 0
 		shader.SetUniformInt("u_Texture2", 1); // Set the second texture to texture unit 1
+		shader.SetUniformFloat("u_Amount", u_Amount);
 
 		// Bind the vertex array object
         glBindVertexArray(VAO);
@@ -156,5 +160,19 @@ void processInput(GLFWwindow* window)
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
     {
         glfwSetWindowShouldClose(window, true);
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+    {
+		// Increase the amount of texture blending, clamped between 0.0 and 1.0
+		u_Amount += 0.01f;
+		if (u_Amount > 1.0f) u_Amount = 1.0f; // Clamp to 1.0
+	}
+
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+    {
+        // Decrease the amount of texture blending, clamped between 0.0 and 1.0
+        u_Amount -= 0.01f;
+        if (u_Amount < 0.0f) u_Amount = 0.0f; // Clamp to 0.0
     }
 }
