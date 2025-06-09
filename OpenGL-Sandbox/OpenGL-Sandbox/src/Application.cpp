@@ -1,3 +1,4 @@
+#include "Camera.h"
 #include "Shader.h"
 #include "Texture.h"
 
@@ -17,9 +18,21 @@
 const unsigned int SCREEN_WIDTH = 800;
 const unsigned int SCREEN_HEIGHT = 600;
 
+// Camera system
+Camera camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f);
+
+glm::vec2 lastMousePos = { SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 };
+bool firstMouse = true; // First time the mouse is captured by the window on focus
+
+// Time step
+float deltaTime = 0.0f; // Time betwwen current frame and last frame
+float lastFrame = 0.0f; // Time of last frame
+
 // User input
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-void processInput(GLFWwindow* window);
+void mouse_callback(GLFWwindow* window, double xPos, double yPos);
+void scroll_callback(GLFWwindow* window, double xOffset, double yOffset);
+void process_input(GLFWwindow* window, float ts);
 
 int main()
 {
@@ -41,7 +54,14 @@ int main()
     }
 
     glfwMakeContextCurrent(window);
+
+    // Capture mouse by default when the application gets focus
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+    // Set window callbacks
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetScrollCallback(window, scroll_callback);
 
     // Load all OpenGL function pointers
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
@@ -140,26 +160,14 @@ int main()
     // Render loop
     while (!glfwWindowShouldClose(window))
     {
-        float timeValue = (float)glfwGetTime();
-        float colorValue = (sin(timeValue) / 2.0f) + 0.5f;
+        float currentFrame = (float)glfwGetTime();
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
 
-        // Transformation experiments
-        glm::mat4 transform = glm::mat4(1.0f);
-        transform = glm::translate(transform, glm::vec3(0.5f, -0.5f, 0.0f));
-        transform = glm::rotate(transform, timeValue, glm::vec3(0.0f, 0.0f, 1.0f));
-
-        // Going 3D
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::rotate(model, timeValue * glm::radians(50.0f), glm::vec3(0.5f, 1.0f, 0.0f));
-
-        glm::mat4 view = glm::mat4(1.0f);
-        view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-
-        glm::mat4 projection;
-        projection = glm::perspective(glm::radians(45.0f), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
+        float colorValue = (glm::sin(currentFrame) / 2.0f) + 0.5f;
 
         // Handle user input
-        processInput(window);
+        process_input(window, deltaTime);
 
         // Rendering anything happens here
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -172,6 +180,13 @@ int main()
 		woodenTexture.Bind();
 		awesomeFaceTexture.Bind(1); // Bind the second texture to texture unit 1
 
+        // Camera experiments
+        // Calculate camera projection matrix
+        glm::mat4 projection = glm::perspective(glm::radians(camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
+
+        // Calculate camera view matrix
+        glm::mat4 view = camera.GetViewMatrix();
+
         // Bind the shader
         shader.Use();
          
@@ -179,9 +194,8 @@ int main()
         shader.SetUniform4f("u_Color", colorValue, colorValue, colorValue, 1.0f);
 		shader.SetUniformInt("u_Texture1", 0); // Set the first texture to texture unit 0
 		shader.SetUniformInt("u_Texture2", 1); // Set the second texture to texture unit 1
-		shader.SetUniformMat4f("u_Model", glm::value_ptr(model)); // Pass the transformation matrix to the shader
-        shader.SetUniformMat4f("u_View", glm::value_ptr(view)); // Pass the transformation matrix to the shader
-        shader.SetUniformMat4f("u_Projection", glm::value_ptr(projection)); // Pass the transformation matrix to the shader
+        shader.SetUniformMat4f("u_View", glm::value_ptr(view)); // Pass the camera view matrix to the shader
+        shader.SetUniformMat4f("u_Projection", glm::value_ptr(projection)); // Send the projection matrix to the shader
 
 		// Bind the vertex array object
         glBindVertexArray(VAO);
@@ -216,10 +230,45 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
-void processInput(GLFWwindow* window)
+void mouse_callback(GLFWwindow* window, double xPos, double yPos)
 {
+    if (firstMouse)
+    {
+        lastMousePos = { (float)xPos, (float)yPos };
+        firstMouse = false;
+    }
+
+    glm::vec2 offset = 
+    { 
+        xPos - lastMousePos.x, 
+        lastMousePos.y - yPos // reversed since y-coordinates range from bottom to top
+    };
+    lastMousePos = { (float)xPos, (float)yPos };
+
+    camera.OnMouseMove(offset);
+}
+
+void scroll_callback(GLFWwindow* window, double xOffset, double yOffset)
+{
+    camera.OnMouseScroll(yOffset);
+}
+
+void process_input(GLFWwindow* window, float ts)
+{
+    const float cameraSpeed = 2.5f * ts;
+
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
     {
         glfwSetWindowShouldClose(window, true);
     }
+
+    // Camera movement
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        camera.OnKeyPressed(ts, CameraMovement::FORWARD);
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        camera.OnKeyPressed(ts, CameraMovement::BACKWARD);
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        camera.OnKeyPressed(ts, CameraMovement::LEFT);
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        camera.OnKeyPressed(ts, CameraMovement::RIGHT);
 }
