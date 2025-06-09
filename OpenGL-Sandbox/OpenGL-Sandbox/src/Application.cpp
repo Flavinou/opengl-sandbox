@@ -73,58 +73,56 @@ int main()
     glEnable(GL_DEPTH_TEST);
 
     // Create shader
-    Shader shader("resources/shaders/Vertex.glsl", "resources/shaders/Fragment.glsl");
+    Shader litShader("resources/shaders/Vertex.glsl", "resources/shaders/LitFragment.glsl");
+    Shader unlitShader("resources/shaders/Vertex.glsl", "resources/shaders/UnlitFragment.glsl");
 
-    // Create texture
-    Texture woodenTexture("resources/textures/wooden_container.jpg");
-	Texture awesomeFaceTexture("resources/textures/awesomeface.png");
+    // Renderer data - the vertices below define a cube that is located at the center of the screen
+    float cubeVertices[] =
+    {   // positions only
+        -0.5f, -0.5f, -0.5f,
+         0.5f, -0.5f, -0.5f,
+         0.5f,  0.5f, -0.5f,
+         0.5f,  0.5f, -0.5f,
+        -0.5f,  0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,
 
-    // Renderer data
-    float vertices[] =
-    {   // positions            // texture coords
-        -0.5f, -0.5f, -0.5f,    0.0f, 0.0f,
-         0.5f, -0.5f, -0.5f,    1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,    1.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,    1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f,    0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,    0.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,
+         0.5f, -0.5f,  0.5f,
+         0.5f,  0.5f,  0.5f,
+         0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f,  0.5f,
+        -0.5f, -0.5f,  0.5f,
 
-        -0.5f, -0.5f,  0.5f,    0.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,    1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,    1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,    1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,    0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,    0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,
+        -0.5f, -0.5f,  0.5f,
+        -0.5f,  0.5f,  0.5f,
 
-        -0.5f,  0.5f,  0.5f,    1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,    1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,    0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,    0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,    0.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,    1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,
+         0.5f,  0.5f, -0.5f,
+         0.5f, -0.5f, -0.5f,
+         0.5f, -0.5f, -0.5f,
+         0.5f, -0.5f,  0.5f,
+         0.5f,  0.5f,  0.5f,
 
-         0.5f,  0.5f,  0.5f,    1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,    1.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,    0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,    0.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,    0.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,    1.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,
+         0.5f, -0.5f, -0.5f,
+         0.5f, -0.5f,  0.5f,
+         0.5f, -0.5f,  0.5f,
+        -0.5f, -0.5f,  0.5f,
+        -0.5f, -0.5f, -0.5f,
 
-        -0.5f, -0.5f, -0.5f,    0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,    1.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,    1.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,    1.0f, 0.0f,
-        -0.5f, -0.5f,  0.5f,    0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,    0.0f, 1.0f,
-
-        -0.5f,  0.5f, -0.5f,    0.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,    1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,    1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,    1.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,    0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,    0.0f, 1.0f
+        -0.5f,  0.5f, -0.5f,
+         0.5f,  0.5f, -0.5f,
+         0.5f,  0.5f,  0.5f,
+         0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f, -0.5f,
     };
 
+    // The array defines a new position at each index for a new cube to be drawn onto the screen
     glm::vec3 cubePositions[] =
     {
         glm::vec3(0.0f,  0.0f,  0.0f),
@@ -139,23 +137,34 @@ int main()
         glm::vec3(-1.3f,  1.0f, -1.5f)
     };
 
+    // Light source position in the world
+    glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
+
     unsigned int VAO, VBO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
 
-    // Bind the vertex array first as container for the element and vertex buffer objects
     glBindVertexArray(VAO);
 
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
 
     // Configure vertex attributes (memory layout)
     // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)nullptr);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)nullptr);
     glEnableVertexAttribArray(0);
-	// texture coordinate attribute
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(2);
+
+    unsigned int lightVAO;
+    glGenVertexArrays(1, &lightVAO);
+
+    glBindVertexArray(lightVAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+    // Configure vertex attributes for the light VAO (memory layout)
+    // position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)nullptr);
+    glEnableVertexAttribArray(0);
 
     // Render loop
     while (!glfwWindowShouldClose(window))
@@ -163,8 +172,6 @@ int main()
         float currentFrame = (float)glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
-
-        float colorValue = (glm::sin(currentFrame) / 2.0f) + 0.5f;
 
         // Handle user input
         process_input(window, deltaTime);
@@ -176,41 +183,44 @@ int main()
         // Wireframe mode
         // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-		// Bind the texture
-		woodenTexture.Bind();
-		awesomeFaceTexture.Bind(1); // Bind the second texture to texture unit 1
-
-        // Camera experiments
-        // Calculate camera projection matrix
+        // Set the model, view and projection matrix uniforms
+        glm::mat4 model = glm::mat4(1.0f);
         glm::mat4 projection = glm::perspective(glm::radians(camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
-
-        // Calculate camera view matrix
         glm::mat4 view = camera.GetViewMatrix();
 
         // Bind the shader
-        shader.Use();
+        litShader.Use();
          
         // Update the uniform color
-        shader.SetUniform4f("u_Color", colorValue, colorValue, colorValue, 1.0f);
-		shader.SetUniformInt("u_Texture1", 0); // Set the first texture to texture unit 0
-		shader.SetUniformInt("u_Texture2", 1); // Set the second texture to texture unit 1
-        shader.SetUniformMat4f("u_View", glm::value_ptr(view)); // Pass the camera view matrix to the shader
-        shader.SetUniformMat4f("u_Projection", glm::value_ptr(projection)); // Send the projection matrix to the shader
+        litShader.SetUniform4f("u_LightColor", 1.0f, 1.0f, 1.0f, 1.0f);
+        litShader.SetUniform4f("u_TintColor", 1.0f, 0.5f, 0.31f, 1.0f);
 
-		// Bind the vertex array object
-        glBindVertexArray(VAO);
+        litShader.SetUniformMat4f("u_Model", glm::value_ptr(model));
+        litShader.SetUniformMat4f("u_View", glm::value_ptr(view)); // Pass the camera view matrix to the shader
+        litShader.SetUniformMat4f("u_Projection", glm::value_ptr(projection)); // Send the projection matrix to the shader
 
         // Render the geometry
-        for (int i = 0; i < (sizeof(cubePositions) / sizeof(*cubePositions)); i++)
-        {
-            glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, cubePositions[i]);
-            float angle = 20.0f * i;
-            model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
-            shader.SetUniformMat4f("u_Model", glm::value_ptr(model));
+        glBindVertexArray(VAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
-            glDrawArrays(GL_TRIANGLES, 0, 36); // solution when we draw each vertex one-by-one
-        }
+        // Set the model, view and projection matrix uniforms
+        glm::mat4 lightModel = glm::mat4(1.0f);
+        lightModel = glm::translate(lightModel, lightPos);
+        lightModel = glm::scale(lightModel, glm::vec3(0.2f));
+        glm::mat4 lightProjection = glm::perspective(glm::radians(camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 lightView = camera.GetViewMatrix();
+
+        unlitShader.Use();
+
+        unlitShader.SetUniform4f("u_Color", 1.0f, 1.0f, 1.0f, 1.0f);
+
+        unlitShader.SetUniformMat4f("u_Model", glm::value_ptr(lightModel));
+        unlitShader.SetUniformMat4f("u_View", glm::value_ptr(lightView)); // Pass the camera view matrix to the shader
+        unlitShader.SetUniformMat4f("u_Projection", glm::value_ptr(lightProjection)); // Send the projection matrix to the shader
+
+        // Render the light source model
+        glBindVertexArray(lightVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -218,6 +228,7 @@ int main()
 
     // Resource deallocation
     glDeleteVertexArrays(1, &VAO);
+    glDeleteVertexArrays(1, &lightVAO);
     glDeleteBuffers(1, &VBO);
 
     glfwTerminate();
