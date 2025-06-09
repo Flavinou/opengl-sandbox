@@ -23,7 +23,7 @@ public:
     bool IsPitchLocked() { return m_LockPitch; }
     bool IsRotationLocked() { return m_LockRotation; }
 
-    glm::mat4 GetViewMatrix() const { return glm::lookAt(m_Position, m_Position + m_Forward, m_Up); }
+    glm::mat4 GetViewMatrix() const { return LookAt(m_Position, m_Position + m_Forward, m_Up); }
 
     void LockPitch() { m_LockPitch = true; }
     void UnlockPitch() { m_LockPitch = false; }
@@ -35,6 +35,8 @@ public:
     void OnMouseScroll(float yOffset);
 private:
     void UpdateProjection();
+
+    static glm::mat4 LookAt(glm::vec3 eye, glm::vec3 center, glm::vec3 up);
 private:
     glm::vec3 m_Position;
     glm::vec3 m_Forward{ 0.0f, 0.0f, -1.0f }, m_Up, m_Right, m_WorldUp;

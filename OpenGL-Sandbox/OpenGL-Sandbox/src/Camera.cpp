@@ -73,3 +73,28 @@ void Camera::UpdateProjection()
     m_Right = glm::normalize(glm::cross(m_Forward, m_WorldUp));
     m_Up = glm::normalize(glm::cross(m_Right, m_Forward));
 }
+
+/*static */glm::mat4 Camera::LookAt(glm::vec3 eye, glm::vec3 center, glm::vec3 up)
+{
+    glm::vec3 zAxis = glm::normalize(eye - center);
+    glm::vec3 xAxis = glm::normalize(glm::cross(glm::normalize(up), zAxis));
+    glm::vec3 yAxis = glm::cross(zAxis, xAxis);
+
+    glm::mat4 rotation{ 1.0f }, translation{ 1.0f };
+
+    translation[3][0] = -eye.x;
+    translation[3][1] = -eye.y;
+    translation[3][2] = -eye.z;
+
+    rotation[0][0] = xAxis.x;
+    rotation[1][0] = xAxis.y;
+    rotation[2][0] = xAxis.z;
+    rotation[0][1] = yAxis.x;
+    rotation[1][1] = yAxis.y;
+    rotation[2][1] = yAxis.z;
+    rotation[0][2] = zAxis.x;
+    rotation[1][2] = zAxis.y;
+    rotation[2][2] = zAxis.z;
+
+    return rotation * translation;
+}
