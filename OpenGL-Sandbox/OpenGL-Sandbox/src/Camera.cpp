@@ -53,11 +53,20 @@ void Camera::OnMouseScroll(float yOffset)
 
 void Camera::UpdateProjection()
 {
+    if (m_LockPitch)
+        m_Pitch = 0.0f;
+
+    if (m_LockRotation)
+    {
+        m_Yaw = -90.0f;
+        m_Pitch = 0.0f;
+    }
+
     glm::vec3 direction =
     {
         glm::cos(glm::radians(m_Yaw)) * glm::cos(glm::radians(m_Pitch)),
         glm::sin(glm::radians(m_Pitch)),
-        glm::sin(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch))
+        glm::sin(glm::radians(m_Yaw)) * glm::cos(glm::radians(m_Pitch))
     };
 
     m_Forward = glm::normalize(direction);

@@ -20,7 +20,15 @@ public:
     const float GetYaw() const { return m_Yaw; }
     const float GetPitch() const { return m_Pitch; }
 
-    const glm::mat4 GetViewMatrix() const { return glm::lookAt(m_Position, m_Position + m_Forward, m_Up); }
+    bool IsPitchLocked() { return m_LockPitch; }
+    bool IsRotationLocked() { return m_LockRotation; }
+
+    glm::mat4 GetViewMatrix() const { return glm::lookAt(m_Position, m_Position + m_Forward, m_Up); }
+
+    void LockPitch() { m_LockPitch = true; }
+    void UnlockPitch() { m_LockPitch = false; }
+    void LockRotation() { m_LockRotation = true; }
+    void UnlockRotation() { m_LockRotation = false; }
 
     void OnKeyPressed(float deltaTime, CameraMovement direction);
     void OnMouseMove(glm::vec2 offset, bool constrainPitch = true);
@@ -33,4 +41,6 @@ private:
 
     float m_Yaw = -90.0f, m_Pitch = 0.0f;
     float m_Speed = 2.5f, m_Sensitivity = 0.1f, m_FOV = 45.0f;
+
+    bool m_LockPitch = false, m_LockRotation = false;
 };

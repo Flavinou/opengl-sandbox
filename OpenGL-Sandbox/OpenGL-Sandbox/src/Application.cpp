@@ -271,4 +271,13 @@ void process_input(GLFWwindow* window, float ts)
         camera.OnKeyPressed(ts, CameraMovement::LEFT);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.OnKeyPressed(ts, CameraMovement::RIGHT);
+
+    // Lock camera rotation
+    if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+    {
+        if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
+            camera.IsRotationLocked() ? camera.UnlockRotation() : camera.LockRotation();
+        if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS)
+            camera.IsPitchLocked() ? camera.UnlockPitch() : camera.LockPitch();
+    }
 }
