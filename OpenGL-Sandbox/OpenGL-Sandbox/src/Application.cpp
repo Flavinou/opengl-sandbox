@@ -50,6 +50,8 @@ int main()
         return -1;
     }
 
+    glEnable(GL_DEPTH_TEST);
+
     // Create shader
     Shader shader("resources/shaders/Vertex.glsl", "resources/shaders/Fragment.glsl");
 
@@ -59,22 +61,67 @@ int main()
 
     // Renderer data
     float vertices[] =
-	{   // positions            // colors            // texture coords
-         0.5f,  0.5f, 0.0f,     0.0f, 0.0f, 1.0f,    1.0f, 1.0f, // top right
-         0.5f, -0.5f, 0.0f,     1.0f, 0.0f, 0.0f,    1.0f, 0.0f, // bottom right
-        -0.5f, -0.5f, 0.0f,     0.0f, 1.0f, 0.0f,    0.0f, 0.0f, // bottom left 
-		-0.5f,  0.5f, 0.0f,     1.0f, 1.0f, 0.0f,    0.0f, 1.0f  // top left
-    };
-    unsigned int indices[] =
-    {
-        0, 1, 3, // first triangle
-		1, 2, 3  // second triangle
+    {   // positions            // texture coords
+        -0.5f, -0.5f, -0.5f,    0.0f, 0.0f,
+         0.5f, -0.5f, -0.5f,    1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,    1.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,    1.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f,    0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,    0.0f, 0.0f,
+
+        -0.5f, -0.5f,  0.5f,    0.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,    1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,    1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,    1.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,    0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,    0.0f, 0.0f,
+
+        -0.5f,  0.5f,  0.5f,    1.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,    1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,    0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,    0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,    0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,    1.0f, 0.0f,
+
+         0.5f,  0.5f,  0.5f,    1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,    1.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,    0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,    0.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,    0.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,    1.0f, 0.0f,
+
+        -0.5f, -0.5f, -0.5f,    0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,    1.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,    1.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,    1.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,    0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,    0.0f, 1.0f,
+
+        -0.5f,  0.5f, -0.5f,    0.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,    1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,    1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,    1.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,    0.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,    0.0f, 1.0f
     };
 
-    unsigned int VAO, VBO, EBO;
+    glm::vec3 cubePositions[] =
+    {
+        glm::vec3(0.0f,  0.0f,  0.0f),
+        glm::vec3(2.0f,  5.0f, -15.0f),
+        glm::vec3(-1.5f, -2.2f, -2.5f),
+        glm::vec3(-3.8f, -2.0f, -12.3f),
+        glm::vec3(2.4f, -0.4f, -3.5f),
+        glm::vec3(-1.7f,  3.0f, -7.5f),
+        glm::vec3(1.3f, -2.0f, -2.5f),
+        glm::vec3(1.5f,  2.0f, -2.5f),
+        glm::vec3(1.5f,  0.2f, -1.5f),
+        glm::vec3(-1.3f,  1.0f, -1.5f)
+    };
+
+    unsigned int VAO, VBO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
 
     // Bind the vertex array first as container for the element and vertex buffer objects
     glBindVertexArray(VAO);
@@ -82,24 +129,18 @@ int main()
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
     // Configure vertex attributes (memory layout)
     // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)nullptr);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)nullptr);
     glEnableVertexAttribArray(0);
-    // color attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
 	// texture coordinate attribute
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
 	glEnableVertexAttribArray(2);
 
     // Render loop
     while (!glfwWindowShouldClose(window))
     {
-        float timeValue = glfwGetTime();
+        float timeValue = (float)glfwGetTime();
         float colorValue = (sin(timeValue) / 2.0f) + 0.5f;
 
         // Transformation experiments
@@ -107,12 +148,22 @@ int main()
         transform = glm::translate(transform, glm::vec3(0.5f, -0.5f, 0.0f));
         transform = glm::rotate(transform, timeValue, glm::vec3(0.0f, 0.0f, 1.0f));
 
+        // Going 3D
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::rotate(model, timeValue * glm::radians(50.0f), glm::vec3(0.5f, 1.0f, 0.0f));
+
+        glm::mat4 view = glm::mat4(1.0f);
+        view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
+
+        glm::mat4 projection;
+        projection = glm::perspective(glm::radians(45.0f), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
+
         // Handle user input
         processInput(window);
 
         // Rendering anything happens here
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Wireframe mode
         // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -128,15 +179,24 @@ int main()
         shader.SetUniform4f("u_Color", colorValue, colorValue, colorValue, 1.0f);
 		shader.SetUniformInt("u_Texture1", 0); // Set the first texture to texture unit 0
 		shader.SetUniformInt("u_Texture2", 1); // Set the second texture to texture unit 1
-		shader.SetUniformMat4f("u_Transform", glm::value_ptr(transform)); // Pass the transformation matrix to the shader
+		shader.SetUniformMat4f("u_Model", glm::value_ptr(model)); // Pass the transformation matrix to the shader
+        shader.SetUniformMat4f("u_View", glm::value_ptr(view)); // Pass the transformation matrix to the shader
+        shader.SetUniformMat4f("u_Projection", glm::value_ptr(projection)); // Pass the transformation matrix to the shader
 
 		// Bind the vertex array object
         glBindVertexArray(VAO);
 
         // Render the geometry
-        // glDrawArrays(GL_TRIANGLES, 0, 6); // solution when we draw each vertex one-by-one
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr); // solution using index buffer and reuse the same set of vertices multiple times
-        // glBindVertexArray(0); // no need to unbind VAO each time as there is only one at the moment
+        for (int i = 0; i < (sizeof(cubePositions) / sizeof(*cubePositions)); i++)
+        {
+            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::translate(model, cubePositions[i]);
+            float angle = 20.0f * i;
+            model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
+            shader.SetUniformMat4f("u_Model", glm::value_ptr(model));
+
+            glDrawArrays(GL_TRIANGLES, 0, 36); // solution when we draw each vertex one-by-one
+        }
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -145,7 +205,6 @@ int main()
     // Resource deallocation
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &EBO);
 
     glfwTerminate();
 
