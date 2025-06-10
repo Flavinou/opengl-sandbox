@@ -16,6 +16,7 @@ class Camera
 public:
     Camera(glm::vec3 position, glm::vec3 up, float yaw, float pitch);
 
+    const glm::vec3& GetWorldPosition() const { return m_Position; }
     const float GetFOV() const { return m_FOV; }
     const float GetYaw() const { return m_Yaw; }
     const float GetPitch() const { return m_Pitch; }

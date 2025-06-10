@@ -78,48 +78,48 @@ int main()
 
     // Renderer data - the vertices below define a cube that is located at the center of the screen
     float cubeVertices[] =
-    {   // positions only
-        -0.5f, -0.5f, -0.5f,
-         0.5f, -0.5f, -0.5f,
-         0.5f,  0.5f, -0.5f,
-         0.5f,  0.5f, -0.5f,
-        -0.5f,  0.5f, -0.5f,
-        -0.5f, -0.5f, -0.5f,
+    {   // positions            // normals
+        -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,
+         0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,
+         0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,
+         0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,
+        -0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,
+        -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,
 
-        -0.5f, -0.5f,  0.5f,
-         0.5f, -0.5f,  0.5f,
-         0.5f,  0.5f,  0.5f,
-         0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f,  0.5f,
-        -0.5f, -0.5f,  0.5f,
+        -0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,
 
-        -0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f, -0.5f,
-        -0.5f, -0.5f, -0.5f,
-        -0.5f, -0.5f, -0.5f,
-        -0.5f, -0.5f,  0.5f,
-        -0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f,  0.5f,    -1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f,    -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,    -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,    -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f,  0.5f,    -1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f,    -1.0f,  0.0f,  0.0f,
 
-         0.5f,  0.5f,  0.5f,
-         0.5f,  0.5f, -0.5f,
-         0.5f, -0.5f, -0.5f,
-         0.5f, -0.5f, -0.5f,
-         0.5f, -0.5f,  0.5f,
-         0.5f,  0.5f,  0.5f,
+         0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,
+         0.5f,  0.5f, -0.5f,     1.0f,  0.0f,  0.0f,
+         0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,
+         0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,
+         0.5f, -0.5f,  0.5f,     1.0f,  0.0f,  0.0f,
+         0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,
 
-        -0.5f, -0.5f, -0.5f,
-         0.5f, -0.5f, -0.5f,
-         0.5f, -0.5f,  0.5f,
-         0.5f, -0.5f,  0.5f,
-        -0.5f, -0.5f,  0.5f,
-        -0.5f, -0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,
+         0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,
+         0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,
+         0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,
+        -0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,
 
-        -0.5f,  0.5f, -0.5f,
-         0.5f,  0.5f, -0.5f,
-         0.5f,  0.5f,  0.5f,
-         0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f, -0.5f,
+        -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,
+         0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,
+         0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,
+         0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f
     };
 
     // The array defines a new position at each index for a new cube to be drawn onto the screen
@@ -151,8 +151,11 @@ int main()
 
     // Configure vertex attributes (memory layout)
     // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)nullptr);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)nullptr);
     glEnableVertexAttribArray(0);
+    // normal attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
 
     unsigned int lightVAO;
     glGenVertexArrays(1, &lightVAO);
@@ -163,7 +166,7 @@ int main()
 
     // Configure vertex attributes for the light VAO (memory layout)
     // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)nullptr);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)nullptr);
     glEnableVertexAttribArray(0);
 
     // Render loop
@@ -192,6 +195,9 @@ int main()
         litShader.Use();
          
         // Update the uniform color
+        const glm::vec3& cameraPosition = camera.GetWorldPosition();
+        litShader.SetUniform3f("u_ViewPosition", cameraPosition.x, cameraPosition.y, cameraPosition.z);
+        litShader.SetUniform3f("u_LightPosition", lightPos.x, lightPos.y, lightPos.z);
         litShader.SetUniform4f("u_LightColor", 1.0f, 1.0f, 1.0f, 1.0f);
         litShader.SetUniform4f("u_TintColor", 1.0f, 0.5f, 0.31f, 1.0f);
 
