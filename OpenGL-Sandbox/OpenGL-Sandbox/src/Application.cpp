@@ -176,11 +176,13 @@ int main()
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
+        lightPos = { glm::sin(currentFrame) * 2.0f, lightPos.y, glm::cos(currentFrame) * 1.5f };
+
         // Handle user input
         process_input(window, deltaTime);
 
         // Rendering anything happens here
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Wireframe mode
