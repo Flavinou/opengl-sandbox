@@ -229,7 +229,7 @@ int main()
 
         unlitShader.Use();
 
-        unlitShader.SetUniform4f("u_Color", 1.0f, 1.0f, 1.0f, 1.0f);
+        unlitShader.SetVector4f("u_Color", ambientColor + diffuseColor);
 
         unlitShader.SetMatrix4f("u_Model", lightModel);
         unlitShader.SetMatrix4f("u_View", lightView); // Pass the camera view matrix to the shader
