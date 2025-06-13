@@ -180,7 +180,7 @@ int main()
         process_input(window, deltaTime);
 
         // Rendering anything happens here
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Wireframe mode
@@ -196,14 +196,25 @@ int main()
          
         // Update the uniform color
         const glm::vec3& cameraPosition = camera.GetWorldPosition();
-        litShader.SetUniform3f("u_ViewPosition", cameraPosition.x, cameraPosition.y, cameraPosition.z);
-        litShader.SetUniform3f("u_LightPosition", lightPos.x, lightPos.y, lightPos.z);
-        litShader.SetUniform4f("u_LightColor", 1.0f, 1.0f, 1.0f, 1.0f);
-        litShader.SetUniform4f("u_TintColor", 1.0f, 0.5f, 0.31f, 1.0f);
+        litShader.SetVector3f("u_ViewPosition", cameraPosition);
 
-        litShader.SetUniformMat4f("u_Model", glm::value_ptr(model));
-        litShader.SetUniformMat4f("u_View", glm::value_ptr(view)); // Pass the camera view matrix to the shader
-        litShader.SetUniformMat4f("u_Projection", glm::value_ptr(projection)); // Send the projection matrix to the shader
+        litShader.SetUniform4f("u_Material.ambient", 1.0f, 0.5f, 0.31f, 1.0f);
+        litShader.SetUniform4f("u_Material.diffuse", 1.0f, 0.5f, 0.31f, 1.0f);
+        litShader.SetUniform4f("u_Material.specular", 0.5f, 0.5f, 0.5f, 1.0f);
+        litShader.SetUniformFloat("u_Material.shininess", 32.0f);
+
+        glm::vec4 lightColor{ glm::sin(currentFrame * 2.0f), glm::sin(currentFrame * 0.7f), glm::sin(currentFrame * 1.3f), 1.0f };
+		glm::vec4 diffuseColor = lightColor * glm::vec4(0.5f); // Scale the color for diffuse lighting
+        glm::vec4 ambientColor = diffuseColor * glm::vec4(0.2f); // Scale the color for ambient lighting
+
+		litShader.SetVector3f("u_Light.position", lightPos);
+        litShader.SetVector4f("u_Light.ambient", ambientColor);
+        litShader.SetVector4f("u_Light.diffuse", diffuseColor);
+        litShader.SetUniform4f("u_Light.specular", 1.0f, 1.0f, 1.0f, 1.0f);
+
+        litShader.SetMatrix4f("u_Model", model);
+        litShader.SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
+        litShader.SetMatrix4f("u_Projection", projection); // Send the projection matrix to the shader
 
         // Render the geometry
         glBindVertexArray(VAO);
@@ -220,9 +231,9 @@ int main()
 
         unlitShader.SetUniform4f("u_Color", 1.0f, 1.0f, 1.0f, 1.0f);
 
-        unlitShader.SetUniformMat4f("u_Model", glm::value_ptr(lightModel));
-        unlitShader.SetUniformMat4f("u_View", glm::value_ptr(lightView)); // Pass the camera view matrix to the shader
-        unlitShader.SetUniformMat4f("u_Projection", glm::value_ptr(lightProjection)); // Send the projection matrix to the shader
+        unlitShader.SetMatrix4f("u_Model", lightModel);
+        unlitShader.SetMatrix4f("u_View", lightView); // Pass the camera view matrix to the shader
+        unlitShader.SetMatrix4f("u_Projection", lightProjection); // Send the projection matrix to the shader
 
         // Render the light source model
         glBindVertexArray(lightVAO);
