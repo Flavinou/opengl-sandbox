@@ -3,9 +3,7 @@ out vec4 FragColor;
 
 in vec3 FragmentPosition;
 in vec3 Normal;
-
-uniform vec3 u_ViewPosition;
-uniform vec3 u_LightPosition;
+in vec3 LightViewPos;
 
 uniform vec4 u_LightColor;
 uniform vec4 u_TintColor;
@@ -16,13 +14,13 @@ void main()
 	vec4 ambient = ambientStrength * u_LightColor;
 
 	vec3 norm = normalize(Normal);
-	vec3 lightDirection = normalize(u_LightPosition - FragmentPosition);
+	vec3 lightDirection = normalize(LightViewPos - FragmentPosition);
 
 	float diff = max(dot(norm, lightDirection), 0.0);
 	vec4 diffuse = diff * u_LightColor;
 
 	float specularStrength = 0.5;
-	vec3 viewDirection = normalize(u_ViewPosition - FragmentPosition);
+	vec3 viewDirection = normalize(-FragmentPosition); // The viewer is always at the origin in view-space
 	vec3 reflectionDirection = reflect(-lightDirection, norm);
 
 	float spec = pow(max(dot(viewDirection, reflectionDirection), 0.0), 32);

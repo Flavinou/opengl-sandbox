@@ -4,6 +4,9 @@ layout (location = 1) in vec3 aNormal; // Vertex normal
 
 out vec3 FragmentPosition;
 out vec3 Normal;
+out vec3 LightViewPos; // Light position in view space
+
+uniform vec3 u_LightPosition; // Light position in world space
 
 uniform mat4 u_Model;
 uniform mat4 u_View;
@@ -12,6 +15,7 @@ uniform mat4 u_Projection;
 void main()
 {
 	gl_Position = u_Projection * u_View * u_Model * vec4(aPos, 1.0);
-	FragmentPosition = vec3(u_Model * vec4(aPos, 1.0));
-	Normal = mat3(transpose(inverse(u_Model))) * aNormal;
+	FragmentPosition = vec3(u_View * u_Model * vec4(aPos, 1.0));
+	Normal = mat3(transpose(inverse(u_View * u_Model))) * aNormal;
+	LightViewPos = vec3(u_View * vec4(u_LightPosition, 1.0)); // Transform light position to view space
 }
