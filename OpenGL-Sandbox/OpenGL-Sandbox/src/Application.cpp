@@ -1,4 +1,5 @@
 #include "Camera.h"
+#include "Material.h"
 #include "Shader.h"
 #include "Texture.h"
 
@@ -198,19 +199,16 @@ int main()
         const glm::vec3& cameraPosition = camera.GetWorldPosition();
         litShader.SetVector3f("u_ViewPosition", cameraPosition);
 
-        litShader.SetUniform4f("u_Material.ambient", 1.0f, 0.5f, 0.31f, 1.0f);
-        litShader.SetUniform4f("u_Material.diffuse", 1.0f, 0.5f, 0.31f, 1.0f);
-        litShader.SetUniform4f("u_Material.specular", 0.5f, 0.5f, 0.5f, 1.0f);
-        litShader.SetUniformFloat("u_Material.shininess", 32.0f);
+        litShader.SetVector4f("u_Material.ambient", Obsidian.Ambient);
+        litShader.SetVector4f("u_Material.diffuse", Obsidian.Diffuse);
+        litShader.SetVector4f("u_Material.specular", Obsidian.Specular);
+        litShader.SetUniformFloat("u_Material.shininess", Obsidian.Shininess);
 
-        glm::vec4 lightColor{ glm::sin(currentFrame * 2.0f), glm::sin(currentFrame * 0.7f), glm::sin(currentFrame * 1.3f), 1.0f };
-		glm::vec4 diffuseColor = lightColor * glm::vec4(0.5f); // Scale the color for diffuse lighting
-        glm::vec4 ambientColor = diffuseColor * glm::vec4(0.2f); // Scale the color for ambient lighting
-
+		// Set the light properties in the shader - notice the lighting components are set at full intensity
 		litShader.SetVector3f("u_Light.position", lightPos);
-        litShader.SetVector4f("u_Light.ambient", ambientColor);
-        litShader.SetVector4f("u_Light.diffuse", diffuseColor);
-        litShader.SetUniform4f("u_Light.specular", 1.0f, 1.0f, 1.0f, 1.0f);
+        litShader.SetVector4f("u_Light.ambient", glm::vec4(1.0f));
+        litShader.SetVector4f("u_Light.diffuse", glm::vec4(1.0f));
+        litShader.SetVector4f("u_Light.specular", glm::vec4(1.0f));
 
         litShader.SetMatrix4f("u_Model", model);
         litShader.SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
@@ -229,7 +227,7 @@ int main()
 
         unlitShader.Use();
 
-        unlitShader.SetVector4f("u_Color", ambientColor + diffuseColor);
+        unlitShader.SetVector4f("u_Color", glm::vec4(1.0f));
 
         unlitShader.SetMatrix4f("u_Model", lightModel);
         unlitShader.SetMatrix4f("u_View", lightView); // Pass the camera view matrix to the shader
