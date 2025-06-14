@@ -15,8 +15,8 @@
 #include <stb_image/stb_image.h>
 
 // Settings 
-const unsigned int SCREEN_WIDTH = 800;
-const unsigned int SCREEN_HEIGHT = 600;
+const unsigned int SCREEN_WIDTH = 1280;
+const unsigned int SCREEN_HEIGHT = 720;
 
 // Camera system
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f);
@@ -213,7 +213,7 @@ int main()
         litShader.SetUniform4f("u_Material.specular", 0.5f, 0.5f, 0.5f, 1.0f);
         litShader.SetUniformFloat("u_Material.shininess", 64.0f);
 
-        glm::vec4 lightColor{ glm::sin(currentFrame * 2.0f), glm::sin(currentFrame * 0.7f), glm::sin(currentFrame * 1.3f), 1.0f };
+        glm::vec4 lightColor{ /*glm::sin(currentFrame * 2.0f)*/1.0f, /*glm::sin(currentFrame * 0.7f)*/1.0f, /*glm::sin(currentFrame * 1.3f)*/1.0f, 1.0f };
 		glm::vec4 diffuseColor = lightColor * glm::vec4(0.5f); // Scale the color for diffuse lighting
         glm::vec4 ambientColor = diffuseColor * glm::vec4(0.2f); // Scale the color for ambient lighting
 

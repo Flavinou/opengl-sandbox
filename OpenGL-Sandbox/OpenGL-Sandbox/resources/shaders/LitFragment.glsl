@@ -41,7 +41,7 @@ void main()
 	vec3 viewDirection = normalize(u_ViewPosition - FragmentPosition);
 	vec3 reflectionDirection = reflect(-lightDirection, norm);
 	float spec = pow(max(dot(viewDirection, reflectionDirection), 0.0), u_Material.shininess);
-	vec4 specular = u_Light.specular * spec * texture(u_Material.specular, TexCoords);
+	vec4 specular = u_Light.specular * spec * (vec4(1.0) - texture(u_Material.specular, TexCoords));
 
 	vec4 result = ambient + diffuse + specular;
 	FragColor = result;
