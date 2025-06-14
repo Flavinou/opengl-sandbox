@@ -76,50 +76,54 @@ int main()
     Shader litShader("resources/shaders/Vertex.glsl", "resources/shaders/LitFragment.glsl");
     Shader unlitShader("resources/shaders/Vertex.glsl", "resources/shaders/UnlitFragment.glsl");
 
+    // Load container texture
+	Texture containerTexture("resources/textures/container2.png");
+	Texture specularTexture("resources/textures/container2_specular.png");
+
     // Renderer data - the vertices below define a cube that is located at the center of the screen
     float cubeVertices[] =
-    {   // positions            // normals
-        -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,
-         0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,
-         0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,
-         0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,
-        -0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,
-        -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,
+    {   // positions            // normals              // texture coords
+        -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     0.0f, 0.0f,
+         0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     1.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     1.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     0.0f, 0.0f,
 
-        -0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      0.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      1.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      0.0f, 0.0f,
 
-        -0.5f,  0.5f,  0.5f,    -1.0f,  0.0f,  0.0f,
-        -0.5f,  0.5f, -0.5f,    -1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f,    -1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f,    -1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f,  0.5f,    -1.0f,  0.0f,  0.0f,
-        -0.5f,  0.5f,  0.5f,    -1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f,    -1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,    -1.0f,  0.0f,  0.0f,     1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,    -1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,    -1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,    -1.0f,  0.0f,  0.0f,     0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,    -1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
 
-         0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,
-         0.5f,  0.5f, -0.5f,     1.0f,  0.0f,  0.0f,
-         0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,
-         0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,
-         0.5f, -0.5f,  0.5f,     1.0f,  0.0f,  0.0f,
-         0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,
+         0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,     1.0f,  0.0f,  0.0f,     1.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,     1.0f,  0.0f,  0.0f,     0.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
 
-        -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,
-         0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,
-         0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,
-         0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,
-        -0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,     0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,     1.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,     1.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,     1.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,     0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,     0.0f, 1.0f,
 
-        -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,
-         0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,
-         0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,
-         0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,
-        -0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,
-        -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f
+        -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,     0.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,     1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,     1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,     1.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,     0.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,     0.0f, 1.0f
     };
 
     // The array defines a new position at each index for a new cube to be drawn onto the screen
@@ -151,11 +155,14 @@ int main()
 
     // Configure vertex attributes (memory layout)
     // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)nullptr);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)nullptr);
     glEnableVertexAttribArray(0);
     // normal attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
+	// texture coord attribute
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+	glEnableVertexAttribArray(2);
 
     unsigned int lightVAO;
     glGenVertexArrays(1, &lightVAO);
@@ -166,7 +173,7 @@ int main()
 
     // Configure vertex attributes for the light VAO (memory layout)
     // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)nullptr);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)nullptr);
     glEnableVertexAttribArray(0);
 
     // Render loop
@@ -193,15 +200,18 @@ int main()
 
         // Bind the shader
         litShader.Use();
-         
+
+        containerTexture.Bind(0); // Bind the texture to texture unit 0
+		specularTexture.Bind(1); // Bind the specular texture to texture unit 1
+        litShader.SetUniformInt("u_Material.diffuse", 0);
+		litShader.SetUniformInt("u_Material.specular", 1);
+
         // Update the uniform color
         const glm::vec3& cameraPosition = camera.GetWorldPosition();
         litShader.SetVector3f("u_ViewPosition", cameraPosition);
 
-        litShader.SetUniform4f("u_Material.ambient", 1.0f, 0.5f, 0.31f, 1.0f);
-        litShader.SetUniform4f("u_Material.diffuse", 1.0f, 0.5f, 0.31f, 1.0f);
         litShader.SetUniform4f("u_Material.specular", 0.5f, 0.5f, 0.5f, 1.0f);
-        litShader.SetUniformFloat("u_Material.shininess", 32.0f);
+        litShader.SetUniformFloat("u_Material.shininess", 64.0f);
 
         glm::vec4 lightColor{ glm::sin(currentFrame * 2.0f), glm::sin(currentFrame * 0.7f), glm::sin(currentFrame * 1.3f), 1.0f };
 		glm::vec4 diffuseColor = lightColor * glm::vec4(0.5f); // Scale the color for diffuse lighting
