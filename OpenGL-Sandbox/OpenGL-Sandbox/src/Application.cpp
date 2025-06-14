@@ -78,7 +78,8 @@ int main()
 
     // Load container texture
 	Texture containerTexture("resources/textures/container2.png");
-	Texture specularTexture("resources/textures/container2_specular.png");
+	//Texture specularTexture("resources/textures/container2_specular.png");
+	Texture specularTexture("resources/textures/container2_specular_clearblue.png");
 
     // Renderer data - the vertices below define a cube that is located at the center of the screen
     float cubeVertices[] =
