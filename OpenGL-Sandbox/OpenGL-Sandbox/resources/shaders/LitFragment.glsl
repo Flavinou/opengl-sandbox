@@ -6,6 +6,8 @@ struct Material
 	sampler2D diffuse;
 	sampler2D specular;
 	float shininess;
+
+	sampler2D emissive;
 };
 
 struct Light
@@ -25,6 +27,7 @@ uniform vec3 u_ViewPosition;
 
 uniform Material u_Material;
 uniform Light u_Light;
+uniform float u_Time;
 
 void main()
 {
@@ -41,8 +44,13 @@ void main()
 	vec3 viewDirection = normalize(u_ViewPosition - FragmentPosition);
 	vec3 reflectionDirection = reflect(-lightDirection, norm);
 	float spec = pow(max(dot(viewDirection, reflectionDirection), 0.0), u_Material.shininess);
-	vec4 specular = u_Light.specular * spec * (vec4(1.0) - texture(u_Material.specular, TexCoords));
+	vec4 specular = u_Light.specular * spec * texture(u_Material.specular, TexCoords);
 
-	vec4 result = ambient + diffuse + specular;
+	vec4 emissive = texture(u_Material.emissive, TexCoords);
+
+	// Make the emissive color flicker over time
+	emissive.rgb *= 0.5 + 0.5 * sin(u_Time + TexCoords.x * 10.0 + TexCoords.y * 10.0);
+
+	vec4 result = ambient + diffuse + specular + emissive;
 	FragColor = result;
 }

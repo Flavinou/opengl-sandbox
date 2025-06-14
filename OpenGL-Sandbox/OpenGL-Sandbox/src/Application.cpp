@@ -78,8 +78,8 @@ int main()
 
     // Load container texture
 	Texture containerTexture("resources/textures/container2.png");
-	//Texture specularTexture("resources/textures/container2_specular.png");
-	Texture specularTexture("resources/textures/container2_specular_clearblue.png");
+	Texture specularTexture("resources/textures/container2_specular.png");
+	Texture emissiveTexture("resources/textures/container2_emissive.png");
 
     // Renderer data - the vertices below define a cube that is located at the center of the screen
     float cubeVertices[] =
@@ -204,8 +204,10 @@ int main()
 
         containerTexture.Bind(0); // Bind the texture to texture unit 0
 		specularTexture.Bind(1); // Bind the specular texture to texture unit 1
+		emissiveTexture.Bind(2); // Bind the emissive texture to texture unit 2
         litShader.SetUniformInt("u_Material.diffuse", 0);
 		litShader.SetUniformInt("u_Material.specular", 1);
+		litShader.SetUniformInt("u_Material.emissive", 2);
 
         // Update the uniform color
         const glm::vec3& cameraPosition = camera.GetWorldPosition();
@@ -222,6 +224,8 @@ int main()
         litShader.SetVector4f("u_Light.ambient", ambientColor);
         litShader.SetVector4f("u_Light.diffuse", diffuseColor);
         litShader.SetUniform4f("u_Light.specular", 1.0f, 1.0f, 1.0f, 1.0f);
+
+		litShader.SetUniformFloat("u_Time", currentFrame);
 
         litShader.SetMatrix4f("u_Model", model);
         litShader.SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
