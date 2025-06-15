@@ -38,6 +38,9 @@
     <None Include="resources\shaders\Vertex.glsl" />
     <None Include="resources\shaders\UnlitFragment.glsl" />
     <None Include="resources\shaders\LitFragment.glsl" />
+    <None Include="resources\shaders\SpotLightFragment.glsl" />
+    <None Include="resources\shaders\PointLightFragment.glsl" />
+    <None Include="resources\shaders\DirectionalLightFragment.glsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Shader.h">

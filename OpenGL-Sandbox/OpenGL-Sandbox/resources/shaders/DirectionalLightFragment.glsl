@@ -10,7 +10,7 @@ struct Material
 
 struct Light
 {
-	vec3 position;
+	vec3 direction;
 
 	vec4 ambient;
 	vec4 diffuse;
@@ -22,18 +22,18 @@ in vec3 Normal;
 in vec2 TexCoords;
 
 uniform vec3 u_ViewPosition;
-
 uniform Material u_Material;
 uniform Light u_Light;
 
 void main()
 {
+	vec3 lightDirection = normalize(-u_Light.direction);
+
 	// Ambient
 	vec4 ambient = u_Light.ambient * texture(u_Material.diffuse, TexCoords);
 
 	// Diffuse
 	vec3 norm = normalize(Normal);
-	vec3 lightDirection = normalize(u_Light.position - FragmentPosition);
 	float diff = max(dot(norm, lightDirection), 0.0);
 	vec4 diffuse = u_Light.diffuse * diff * texture(u_Material.diffuse, TexCoords);
 

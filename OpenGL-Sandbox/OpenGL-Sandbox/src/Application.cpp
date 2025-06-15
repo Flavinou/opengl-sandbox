@@ -15,8 +15,8 @@
 #include <stb_image/stb_image.h>
 
 // Settings 
-const unsigned int SCREEN_WIDTH = 800;
-const unsigned int SCREEN_HEIGHT = 600;
+const unsigned int SCREEN_WIDTH = 1600;
+const unsigned int SCREEN_HEIGHT = 900;
 
 // Camera system
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f);
@@ -73,7 +73,7 @@ int main()
     glEnable(GL_DEPTH_TEST);
 
     // Create shader
-    Shader litShader("resources/shaders/Vertex.glsl", "resources/shaders/LitFragment.glsl");
+    Shader litShader("resources/shaders/Vertex.glsl", "resources/shaders/SpotLightFragment.glsl");
     Shader unlitShader("resources/shaders/Vertex.glsl", "resources/shaders/UnlitFragment.glsl");
 
     // Load container texture
@@ -166,7 +166,6 @@ int main()
 
     unsigned int lightVAO;
     glGenVertexArrays(1, &lightVAO);
-
     glBindVertexArray(lightVAO);
 
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -175,6 +174,12 @@ int main()
     // position attribute
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)nullptr);
     glEnableVertexAttribArray(0);
+
+    // Bind the shader once, it is the same here
+    litShader.Use();
+
+    litShader.SetUniformInt("u_Material.diffuse", 0);
+	litShader.SetUniformInt("u_Material.specular", 1);
 
     // Render loop
     while (!glfwWindowShouldClose(window))
@@ -193,61 +198,70 @@ int main()
         // Wireframe mode
         // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
+        litShader.Use();
+
+        // Update the uniform color
+		litShader.SetVector3f("u_Light.position", camera.GetWorldPosition());
+        litShader.SetVector3f("u_Light.direction", camera.GetForwardDirection()); // Spot light direction
+		litShader.SetUniformFloat("u_Light.cutoff", glm::cos(glm::radians(12.5f))); // Inner cut-off angle for the spot light
+        litShader.SetUniformFloat("u_Light.outerCutoff", glm::cos(glm::radians(17.5f))); // Outer cut-off angle for the spot light
+        litShader.SetVector3f("u_ViewPosition", camera.GetWorldPosition());
+
+        litShader.SetUniform4f("u_Light.ambient", 0.2f, 0.2f, 0.2f, 1.0f);
+        litShader.SetUniform4f("u_Light.diffuse", 0.5f, 0.5f, 0.5f, 1.0f);
+        litShader.SetUniform4f("u_Light.specular", 1.0f, 1.0f, 1.0f, 1.0f);
+
+		// We want the point light to cover a distance of 50 units, so we set the attenuation factors accordingly
+		litShader.SetUniformFloat("u_Light.constant", 1.0f);
+		litShader.SetUniformFloat("u_Light.linear", 0.09f);
+		litShader.SetUniformFloat("u_Light.quadratic", 0.032f);
+
+        litShader.SetUniformFloat("u_Material.shininess", 64.0f);
+
         // Set the model, view and projection matrix uniforms
-        glm::mat4 model = glm::mat4(1.0f);
         glm::mat4 projection = glm::perspective(glm::radians(camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
+        glm::mat4 model = glm::mat4(1.0f);
 
-        // Bind the shader
-        litShader.Use();
+        litShader.SetMatrix4f("u_Projection", projection); // Send the projection matrix to the shader
+        litShader.SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
+		litShader.SetMatrix4f("u_Model", model); // Set the model matrix for the shader
 
         containerTexture.Bind(0); // Bind the texture to texture unit 0
 		specularTexture.Bind(1); // Bind the specular texture to texture unit 1
-        litShader.SetUniformInt("u_Material.diffuse", 0);
-		litShader.SetUniformInt("u_Material.specular", 1);
 
-        // Update the uniform color
-        const glm::vec3& cameraPosition = camera.GetWorldPosition();
-        litShader.SetVector3f("u_ViewPosition", cameraPosition);
-
-        litShader.SetUniform4f("u_Material.specular", 0.5f, 0.5f, 0.5f, 1.0f);
-        litShader.SetUniformFloat("u_Material.shininess", 64.0f);
-
-        glm::vec4 lightColor{ glm::sin(currentFrame * 2.0f), glm::sin(currentFrame * 0.7f), glm::sin(currentFrame * 1.3f), 1.0f };
-		glm::vec4 diffuseColor = lightColor * glm::vec4(0.5f); // Scale the color for diffuse lighting
-        glm::vec4 ambientColor = diffuseColor * glm::vec4(0.2f); // Scale the color for ambient lighting
-
-		litShader.SetVector3f("u_Light.position", lightPos);
-        litShader.SetVector4f("u_Light.ambient", ambientColor);
-        litShader.SetVector4f("u_Light.diffuse", diffuseColor);
-        litShader.SetUniform4f("u_Light.specular", 1.0f, 1.0f, 1.0f, 1.0f);
-
-        litShader.SetMatrix4f("u_Model", model);
-        litShader.SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
-        litShader.SetMatrix4f("u_Projection", projection); // Send the projection matrix to the shader
-
-        // Render the geometry
         glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        for (int i = 0; i < 10; i++)
+        {
+            // Calculate the model matrix for each cube and render it
+            glm::mat4 cubeModel = glm::mat4(1.0f);
+            cubeModel = glm::translate(cubeModel, cubePositions[i]);
+            float angle = 20.0f * i;
+            cubeModel = glm::rotate(cubeModel, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
+            litShader.SetMatrix4f("u_Model", cubeModel);
 
-        // Set the model, view and projection matrix uniforms
-        glm::mat4 lightModel = glm::mat4(1.0f);
-        lightModel = glm::translate(lightModel, lightPos);
-        lightModel = glm::scale(lightModel, glm::vec3(0.2f));
-        glm::mat4 lightProjection = glm::perspective(glm::radians(camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
-        glm::mat4 lightView = camera.GetViewMatrix();
+            // Render one cube
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+		}
 
-        unlitShader.Use();
+		// A lamp object is weird here as we are using a directional light
+        //glm::mat4 lightModel = glm::mat4(1.0f);
+        //lightModel = glm::translate(lightModel, lightPos);
+        //lightModel = glm::scale(lightModel, glm::vec3(0.2f));
+        //glm::mat4 lightProjection = glm::perspective(glm::radians(camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
+        //glm::mat4 lightView = camera.GetViewMatrix();
 
-        unlitShader.SetUniform4f("u_Color", 1.0f, 1.0f, 1.0f, 1.0f);
+        //unlitShader.Use();
 
-        unlitShader.SetMatrix4f("u_Model", lightModel);
-        unlitShader.SetMatrix4f("u_View", lightView); // Pass the camera view matrix to the shader
-        unlitShader.SetMatrix4f("u_Projection", lightProjection); // Send the projection matrix to the shader
+        //unlitShader.SetUniform4f("u_Color", 1.0f, 1.0f, 1.0f, 1.0f);
 
-        // Render the light source model
-        glBindVertexArray(lightVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        //unlitShader.SetMatrix4f("u_Model", lightModel);
+        //unlitShader.SetMatrix4f("u_View", lightView); // Pass the camera view matrix to the shader
+        //unlitShader.SetMatrix4f("u_Projection", lightProjection); // Send the projection matrix to the shader
+
+        //// Render the light source model
+        //glBindVertexArray(lightVAO);
+        //glDrawArrays(GL_TRIANGLES, 0, 36);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
