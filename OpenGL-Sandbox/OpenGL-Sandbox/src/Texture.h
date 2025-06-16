@@ -11,6 +11,9 @@ public:
 
 	unsigned int GetWidth() const { return m_Width; }
 	unsigned int GetHeight() const { return m_Height; }
+
+	unsigned int GetID() const { return m_ID; }
+	const char* GetFilePath() const { return m_FilePath; }
 private:
 	unsigned int m_ID;
 	int m_Width, m_Height, m_NbChannels;

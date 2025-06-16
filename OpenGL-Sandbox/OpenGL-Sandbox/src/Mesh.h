@@ -1,9 +1,11 @@
 #pragma once
 
 #include "Shader.h"
+#include "Texture.h"
 
 #include <glm/glm.hpp>
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -16,28 +18,28 @@ namespace AssetLoader
 		glm::vec2 TexCoords; // Texture coordinates for mapping textures onto the vertex
 	};
 
-	struct Texture
+	struct MeshTexture
 	{
-		unsigned int Id;	// Texture ID
-		std::string Type;	// Type of texture (e.g., "diffuse", "specular")
+		std::shared_ptr<Texture> Texture;
+		std::string Type;
 	};
 
 	class Mesh
 	{
 	public:
 		// Constructor
-		Mesh(const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices, const std::vector<Texture>& textures);
+		Mesh(const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices, const std::vector<MeshTexture>& textures);
 
 		// Function to draw the mesh
-		void Draw(const Shader& shader);
+		void Draw(const Shader& shader) const;
 	private:
 		void SetupMesh(); // Function to set up the mesh's OpenGL buffers and attributes
 	private:
 		unsigned int m_VAO, m_VBO, m_EBO; // Vertex Array Object, Vertex Buffer Object, Element Buffer Object IDs
 
 		// Mesh data
-		std::vector<Vertex> m_Vertices;       // List of vertices in the mesh
-		std::vector<unsigned int> m_Indices;  // List of indices for indexed drawing
-		std::vector<Texture> m_Textures;      // List of textures applied to the mesh
+		std::vector<Vertex> m_Vertices;			// List of vertices in the mesh
+		std::vector<unsigned int> m_Indices;	// List of indices for indexed drawing
+		std::vector<MeshTexture> m_Textures;	// List of textures applied to the mesh
 	};
 }
