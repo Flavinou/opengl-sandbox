@@ -79,6 +79,7 @@ int main()
     // Load container texture
 	Texture containerTexture("resources/textures/container2.png");
 	Texture specularTexture("resources/textures/container2_specular.png");
+    Texture emissiveTexture("resources/textures/container2_emissive.png");
 
     // Renderer data - the vertices below define a cube that is located at the center of the screen
     float cubeVertices[] =
@@ -186,6 +187,7 @@ int main()
 
     litShader.SetUniformInt("u_Material.diffuse", 0);
 	litShader.SetUniformInt("u_Material.specular", 1);
+	litShader.SetUniformInt("u_Material.emissive", 2);
     litShader.SetUniformFloat("u_Material.shininess", 32.0f);
 
     // Render loop
@@ -199,7 +201,7 @@ int main()
         process_input(window, deltaTime);
 
         // Rendering anything happens here
-        glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
+        glClearColor(0.702f, 0.3f, 0.078f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Wireframe mode
@@ -207,25 +209,28 @@ int main()
 
         litShader.Use();
 
+        litShader.SetUniformFloat("u_Time", currentFrame);
         litShader.SetVector3f("u_ViewPosition", camera.GetWorldPosition());
 
         // Update the directional light uniforms
+		glm::vec4 directionalLightColor{ 1.0f, 1.0f, 1.0f, 1.0f };
         litShader.SetUniform3f("u_DirectionalLight.direction", -0.2f, -1.0f, -0.3f); // Directional light pointing downwards
         litShader.SetUniform4f("u_DirectionalLight.ambient", 0.05f, 0.05f, 0.05f, 1.0f);
-        litShader.SetUniform4f("u_DirectionalLight.diffuse", 0.4f, 0.4f, 0.4f, 1.0f);
+        litShader.SetVector4f("u_DirectionalLight.diffuse", glm::vec4{ glm::max(directionalLightColor.x * 0.75f * glm::sin(currentFrame), 0.7f), directionalLightColor.y * 0.05f, directionalLightColor.z * 0.05f, 1.0f });
         litShader.SetUniform4f("u_DirectionalLight.specular", 0.5f, 0.5f, 0.5f, 1.0f);
 
 		// Update the point light uniforms
         const glm::vec3 pointLightAttenuationFactors{ 1.0f, 0.09f, 0.032f }; // Constant, linear and quadratic attenuation factors
+        glm::vec4 lightColor{ 1.0f, 1.0f, 1.0f, 1.0f };
         for (unsigned int i = 0; i < sizeof(pointLightPositions) / sizeof(pointLightPositions[0]); i++)
         {
             std::string pointLightName;
 			pointLightName.reserve(48); // Reserve space for the string to avoid reallocations
 			pointLightName = "u_PointLights[" + std::to_string(i) + "]";
-			litShader.SetVector3f(pointLightName + ".position", pointLightPositions[i]);
-			litShader.SetUniform4f(pointLightName + ".ambient", 0.05f, 0.05f, 0.05f, 1.0f); // Ambient light color
-			litShader.SetUniform4f(pointLightName + ".diffuse", 0.8f, 0.8f, 0.8f, 1.0f); // Diffuse light color
-			litShader.SetUniform4f(pointLightName + ".specular", 1.0f, 1.0f, 1.0f, 1.0f); // Specular light color
+            litShader.SetVector3f(pointLightName + ".position", pointLightPositions[i] * glm::vec3{ glm::sin(currentFrame) * 2.0f, 1.0f, glm::cos(currentFrame) * 1.5f});
+			litShader.SetVector4f(pointLightName + ".ambient", lightColor * 0.05f); // Ambient light color
+			litShader.SetVector4f(pointLightName + ".diffuse", glm::vec4{ glm::max(lightColor.x * 0.85f * glm::sin(currentFrame), 0.7f), lightColor.y * 0.05f, lightColor.z * 0.05f, 1.0f}); // Diffuse light color
+			litShader.SetUniform4f(pointLightName + ".specular", 1.0f, 0.3f, 0.3f, 1.0f); // Specular light color
 
 		    // We want the point light to cover a distance of 50 units, so we set the attenuation factors accordingly
 		    litShader.SetUniformFloat(pointLightName + ".constant", pointLightAttenuationFactors.x);
@@ -243,8 +248,8 @@ int main()
         litShader.SetUniformFloat("u_SpotLight.constant", pointLightAttenuationFactors.x);
         litShader.SetUniformFloat("u_SpotLight.linear", pointLightAttenuationFactors.y);
         litShader.SetUniformFloat("u_SpotLight.quadratic", pointLightAttenuationFactors.z);
-		litShader.SetUniformFloat("u_SpotLight.cutOff", glm::cos(glm::radians(5.0f))); // Inner cut-off angle for the spot light
-		litShader.SetUniformFloat("u_SpotLight.outerCutOff", glm::cos(glm::radians(17.5f))); // Outer cut-off angle for the spot light
+		litShader.SetUniformFloat("u_SpotLight.cutOff", glm::cos(glm::radians(12.5f))); // Inner cut-off angle for the spot light
+		litShader.SetUniformFloat("u_SpotLight.outerCutOff", glm::cos(glm::radians(15.0f))); // Outer cut-off angle for the spot light
 
         // Set the model, view and projection matrix uniforms
         glm::mat4 projection = glm::perspective(glm::radians(camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
@@ -257,6 +262,7 @@ int main()
 
         containerTexture.Bind(0); // Bind the texture to texture unit 0
 		specularTexture.Bind(1); // Bind the specular texture to texture unit 1
+        emissiveTexture.Bind(2); // Bind the emissive texture to texture unit 2
 
         glBindVertexArray(VAO);
         for (int i = 0; i < sizeof(cubePositions) / sizeof(cubePositions[0]); i++)
@@ -284,10 +290,10 @@ int main()
         for (unsigned int i = 0; i < sizeof(pointLightPositions) / sizeof(pointLightPositions[0]); i++)
         {
             glm::mat4 lightModel = glm::mat4(1.0f);
-            lightModel = glm::translate(lightModel, pointLightPositions[i]);
+            lightModel = glm::translate(lightModel, pointLightPositions[i] * glm::vec3{ glm::sin(currentFrame) * 2.0f, 1.0f, glm::cos(currentFrame) * 1.5f });
             lightModel = glm::scale(lightModel, glm::vec3(0.2f)); // Scale down the light source
 
-            unlitShader.SetUniform4f("u_Color", 1.0f, 1.0f, 1.0f, 1.0f);
+            unlitShader.SetUniform4f("u_Color", 0.85f, 0.15f, 0.15f, 1.0f);
             unlitShader.SetMatrix4f("u_Model", lightModel);
 
             // Render the light source model

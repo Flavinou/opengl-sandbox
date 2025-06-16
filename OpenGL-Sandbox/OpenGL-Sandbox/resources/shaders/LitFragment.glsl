@@ -6,6 +6,8 @@ struct Material
 	sampler2D diffuse;
 	sampler2D specular;
 	float shininess;
+
+	sampler2D emissive; // Optional emission texture
 };
 
 struct DirectionalLight 
@@ -53,6 +55,7 @@ in vec2 TexCoords;
 
 #define NB_POINT_LIGHTS 4
 
+uniform float u_Time;
 uniform vec3 u_ViewPosition;
 
 uniform DirectionalLight u_DirectionalLight;
@@ -101,8 +104,12 @@ vec4 CalcDirLight(DirectionalLight light, vec3 normal, vec3 viewDir)
 	vec4 ambient = light.ambient * texture(u_Material.diffuse, TexCoords);
 	vec4 diffuse = light.diffuse * diff * texture(u_Material.diffuse, TexCoords);
 	vec4 specular = light.specular * spec * texture(u_Material.specular, TexCoords);
+	vec4 emissive = texture(u_Material.emissive, TexCoords); // Optional emission texture
 
-	return (ambient + diffuse + specular);
+	// Add a dynamic effect to the emissive color
+	emissive.rgb *= 0.5 + 0.5 * sin(u_Time + TexCoords.x * 10.0 + TexCoords.y * 10.0);
+
+	return (ambient + diffuse + specular + emissive);
 }
 
 vec4 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
@@ -124,11 +131,16 @@ vec4 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
 	vec4 ambient = light.ambient * texture(u_Material.diffuse, TexCoords);
 	vec4 diffuse = light.diffuse * diff * texture(u_Material.diffuse, TexCoords);
 	vec4 specular = light.specular * spec * texture(u_Material.specular, TexCoords);
+	vec4 emissive = texture(u_Material.emissive, TexCoords); // Optional emission texture
 	ambient *= attenuation;
 	diffuse *= attenuation;
 	specular *= attenuation;
+	emissive *= attenuation; // Apply attenuation to emissive as well
 
-	return (ambient + diffuse + specular);
+	// Add a dynamic effect to the emissive color
+	emissive.rgb *= 0.5 + 0.5 * sin(u_Time + TexCoords.x * 10.0 + TexCoords.y * 10.0);
+
+	return (ambient + diffuse + specular + emissive);
 }
 
 vec4 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
@@ -155,9 +167,14 @@ vec4 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
 	vec4 ambient = light.ambient * texture(u_Material.diffuse, TexCoords);
 	vec4 diffuse = light.diffuse * diff * texture(u_Material.diffuse, TexCoords);
 	vec4 specular = light.specular * spec * texture(u_Material.specular, TexCoords);
+	vec4 emissive = texture(u_Material.emissive, TexCoords); // Optional emission texture
 	ambient *= attenuation * intensity;
 	diffuse *= attenuation * intensity;
 	specular *= attenuation * intensity;
+	emissive *= attenuation * intensity; // Apply attenuation and intensity to emissive as well
 
-	return (ambient + diffuse + specular);
+	// Add a dynamic effect to the emissive color
+	emissive.rgb *= 0.5 + 0.5 * sin(u_Time + TexCoords.x * 10.0 + TexCoords.y * 10.0);
+
+	return (ambient + diffuse + specular + emissive);
 }
