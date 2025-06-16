@@ -17,7 +17,7 @@ struct Light
 	vec4 specular;
 };
 
-in vec3 FragmentPosition;
+in vec3 FragPos;
 in vec3 Normal;
 in vec2 TexCoords;
 
@@ -38,7 +38,7 @@ void main()
 	vec4 diffuse = u_Light.diffuse * diff * texture(u_Material.diffuse, TexCoords);
 
 	// Specular
-	vec3 viewDirection = normalize(u_ViewPosition - FragmentPosition);
+	vec3 viewDirection = normalize(u_ViewPosition - FragPos);
 	vec3 reflectionDirection = reflect(-lightDirection, norm);
 	float spec = pow(max(dot(viewDirection, reflectionDirection), 0.0), u_Material.shininess);
 	vec4 specular = u_Light.specular * spec * texture(u_Material.specular, TexCoords);

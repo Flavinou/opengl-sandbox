@@ -25,7 +25,7 @@ struct Light
 	float quadratic;
 };
 
-in vec3 FragmentPosition;
+in vec3 FragPos;
 in vec3 Normal;
 in vec2 TexCoords;
 
@@ -35,7 +35,7 @@ uniform Light u_Light;
 
 void main()
 {
-	vec3 lightDirection = normalize(u_Light.position - FragmentPosition);
+	vec3 lightDirection = normalize(u_Light.position - FragPos);
 
 	// Ambient
 	vec4 ambient = u_Light.ambient * texture(u_Material.diffuse, TexCoords);
@@ -46,7 +46,7 @@ void main()
 	vec4 diffuse = u_Light.diffuse * diff * texture(u_Material.diffuse, TexCoords);
 
 	// Specular
-	vec3 viewDirection = normalize(u_ViewPosition - FragmentPosition);
+	vec3 viewDirection = normalize(u_ViewPosition - FragPos);
 	vec3 reflectionDirection = reflect(-lightDirection, norm);
 	float spec = pow(max(dot(viewDirection, reflectionDirection), 0.0), u_Material.shininess);
 	vec4 specular = u_Light.specular * spec * texture(u_Material.specular, TexCoords);
@@ -59,7 +59,7 @@ void main()
 	specular *= intensity; // Apply intensity to specular light
 
 	// Apply attenuation to the light components
-	float distance = length(u_Light.position - FragmentPosition);
+	float distance = length(u_Light.position - FragPos);
 	float attenuation = 1.0 / (u_Light.constant + u_Light.linear * distance + u_Light.quadratic * (distance * distance));
 	ambient *= attenuation; // Ambient light is not usually attenuated, at large distances the light would be darker inside than outside due to attenuation in the else branch
 	diffuse *= attenuation;

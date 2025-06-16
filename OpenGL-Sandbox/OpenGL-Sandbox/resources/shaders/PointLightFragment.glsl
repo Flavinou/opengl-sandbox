@@ -22,7 +22,7 @@ struct Light
 	float quadratic;
 };
 
-in vec3 FragmentPosition;
+in vec3 FragPos;
 in vec3 Normal;
 in vec2 TexCoords;
 
@@ -38,17 +38,17 @@ void main()
 
 	// Diffuse
 	vec3 norm = normalize(Normal);
-	vec3 lightDirection = normalize(u_Light.position - FragmentPosition);
+	vec3 lightDirection = normalize(u_Light.position - FragPos);
 	float diff = max(dot(norm, lightDirection), 0.0);
 	vec4 diffuse = u_Light.diffuse * diff * texture(u_Material.diffuse, TexCoords);
 
 	// Specular
-	vec3 viewDirection = normalize(u_ViewPosition - FragmentPosition);
+	vec3 viewDirection = normalize(u_ViewPosition - FragPos);
 	vec3 reflectionDirection = reflect(-lightDirection, norm);
 	float spec = pow(max(dot(viewDirection, reflectionDirection), 0.0), u_Material.shininess);
 	vec4 specular = u_Light.specular * spec * texture(u_Material.specular, TexCoords);
 
-	float distance = length(u_Light.position - FragmentPosition);
+	float distance = length(u_Light.position - FragPos);
 	float attenuation = 1.0 / (u_Light.constant + u_Light.linear * distance + u_Light.quadratic * (distance * distance));
 
 	// Apply attenuation to the light components
