@@ -2,6 +2,7 @@
 #include "Model.h"
 #include "Shader.h"
 #include "Texture.h"
+#include "TextureManager.h"
 
 #include <iostream>
 #include <fstream>
@@ -72,78 +73,87 @@ int main()
     }
 
     glEnable(GL_DEPTH_TEST);
+    //glDepthFunc(GL_LESS);
 
     // Create shader
     Shader litShader("resources/shaders/Vertex.glsl", "resources/shaders/LitFragment.glsl");
     Shader unlitShader("resources/shaders/Vertex.glsl", "resources/shaders/UnlitFragment.glsl");
 
     // Create model
-	AssetLoader::Model backpackModel("resources/models/backpack/backpack.obj");
+	//AssetLoader::Model backpackModel("resources/models/backpack/backpack.obj");
 
     // Load container texture
+    auto orangeWallTexture = TextureManager::Instance().Get("resources/textures/proto_wall_orange.png");
+    auto lightGroundTexture = TextureManager::Instance().Get("resources/textures/proto_ground_light.png");
+
 	//Texture containerTexture("resources/textures/container2.png");
 	//Texture specularTexture("resources/textures/container2_specular.png");
 
     // Renderer data - the vertices below define a cube that is located at the center of the screen
     float cubeVertices[] =
     {   // positions            // normals              // texture coords
-        -0.5f, -0.5f, -0.5f,     // 0.0f,  0.0f, -1.0f,     0.0f, 0.0f,
-         0.5f, -0.5f, -0.5f,     // 0.0f,  0.0f, -1.0f,     1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,     // 0.0f,  0.0f, -1.0f,     1.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,     // 0.0f,  0.0f, -1.0f,     1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f,     // 0.0f,  0.0f, -1.0f,     0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,     // 0.0f,  0.0f, -1.0f,     0.0f, 0.0f,
-                                 // 
-        -0.5f, -0.5f,  0.5f,     // 0.0f,  0.0f, 1.0f,      0.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,     // 0.0f,  0.0f, 1.0f,      1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,     // 0.0f,  0.0f, 1.0f,      1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,     // 0.0f,  0.0f, 1.0f,      1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,     // 0.0f,  0.0f, 1.0f,      0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,     // 0.0f,  0.0f, 1.0f,      0.0f, 0.0f,
-                                 // 
-        -0.5f,  0.5f,  0.5f,     // -1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,     // -1.0f,  0.0f,  0.0f,     1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,     // -1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,     // -1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,     // -1.0f,  0.0f,  0.0f,     0.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,     // -1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
-                                 // 
-         0.5f,  0.5f,  0.5f,     // 1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,     // 1.0f,  0.0f,  0.0f,     1.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,     // 1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,     // 1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,     // 1.0f,  0.0f,  0.0f,     0.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,     // 1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
-                                 // 
-        -0.5f, -0.5f, -0.5f,     // 0.0f, -1.0f,  0.0f,     0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,     // 0.0f, -1.0f,  0.0f,     1.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,     // 0.0f, -1.0f,  0.0f,     1.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,     // 0.0f, -1.0f,  0.0f,     1.0f, 0.0f,
-        -0.5f, -0.5f,  0.5f,     // 0.0f, -1.0f,  0.0f,     0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,     // 0.0f, -1.0f,  0.0f,     0.0f, 1.0f,
-                                 // 
-        -0.5f,  0.5f, -0.5f,     // 0.0f,  1.0f,  0.0f,     0.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,     // 0.0f,  1.0f,  0.0f,     1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,     // 0.0f,  1.0f,  0.0f,     1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,     // 0.0f,  1.0f,  0.0f,     1.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,     // 0.0f,  1.0f,  0.0f,     0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,     // 0.0f,  1.0f,  0.0f,     0.0f, 1.0f
+        -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     0.0f, 0.0f,
+         0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     1.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     1.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     0.0f, 0.0f,
+                                 
+        -0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      0.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      1.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      0.0f, 0.0f,
+                                 
+        -0.5f,  0.5f,  0.5f,     -1.0f,  0.0f,  0.0f,    1.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,     -1.0f,  0.0f,  0.0f,    1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,     -1.0f,  0.0f,  0.0f,    0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,     -1.0f,  0.0f,  0.0f,    0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,     -1.0f,  0.0f,  0.0f,    0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,     -1.0f,  0.0f,  0.0f,    1.0f, 0.0f,
+                                 
+         0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,     1.0f,  0.0f,  0.0f,     1.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,     1.0f,  0.0f,  0.0f,     0.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
+                                 
+        -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,     0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,     1.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,     1.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,     1.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,     0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,     0.0f, 1.0f,
+                                 
+        -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,     0.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,     1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,     1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,     1.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,     0.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,     0.0f, 1.0f
     };
 
-    // The array defines a new position at each index for a new cube to be drawn onto the screen
-    //glm::vec3 cubePositions[] =
-    //{
-    //    glm::vec3(0.0f,  0.0f,  0.0f),
-    //    glm::vec3(2.0f,  5.0f, -15.0f),
-    //    glm::vec3(-1.5f, -2.2f, -2.5f),
-    //    glm::vec3(-3.8f, -2.0f, -12.3f),
-    //    glm::vec3(2.4f, -0.4f, -3.5f),
-    //    glm::vec3(-1.7f,  3.0f, -7.5f),
-    //    glm::vec3(1.3f, -2.0f, -2.5f),
-    //    glm::vec3(1.5f,  2.0f, -2.5f),
-    //    glm::vec3(1.5f,  0.2f, -1.5f),
-    //    glm::vec3(-1.3f,  1.0f, -1.5f)
-    //};
+    // Cubes positions
+    glm::vec3 cubePositions[] =
+    {
+        glm::vec3(-1.0f, 0.0f, -1.0f),
+        glm::vec3(2.0f, 0.0f, 0.0f)
+    };
+
+    // Plane vertices
+    float planeVertices[] =
+    {
+        // positions            // normals          // texture coordinates (note we set these higher than 1 (together with GL_REPEAT as texture wrapping mode). this will cause the floor texture to repeat)
+         5.0f, -0.5f,  5.0f,    0.0f, 1.0f, 0.0f,   2.0f, 0.0f,
+        -5.0f, -0.5f,  5.0f,    0.0f, 1.0f, 0.0f,   0.0f, 0.0f,
+        -5.0f, -0.5f, -5.0f,    0.0f, 1.0f, 0.0f,   0.0f, 2.0f,
+
+         5.0f, -0.5f,  5.0f,    0.0f, 1.0f, 0.0f,   2.0f, 0.0f,
+        -5.0f, -0.5f, -5.0f,    0.0f, 1.0f, 0.0f,   0.0f, 2.0f,
+         5.0f, -0.5f, -5.0f,    0.0f, 1.0f, 0.0f,   2.0f, 2.0f
+    };
 
     // Point lights positions in the world
     glm::vec3 pointLightPositions[] =
@@ -154,44 +164,68 @@ int main()
         //glm::vec3(0.0f, 0.0f, -3.0f)
 	};
 
- //   unsigned int VAO, VBO;
- //   glGenVertexArrays(1, &VAO);
- //   glGenBuffers(1, &VBO);
+    // Cube(s) VAO
+    unsigned int cubesVAO, cubesVBO;
+    glGenVertexArrays(1, &cubesVAO);
+    glGenBuffers(1, &cubesVBO);
 
- //   glBindVertexArray(VAO);
+    glBindVertexArray(cubesVAO);
 
- //   glBindBuffer(GL_ARRAY_BUFFER, VBO);
- //   glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, cubesVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
 
- //   // Configure vertex attributes (memory layout)
- //   // position attribute
- //   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)nullptr);
- //   glEnableVertexAttribArray(0);
- //   // normal attribute
- //   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
- //   glEnableVertexAttribArray(1);
-	//// texture coord attribute
-	//glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-	//glEnableVertexAttribArray(2);
+    // Configure vertex attributes (memory layout)
+    // position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)nullptr);
+    glEnableVertexAttribArray(0);
+    // normal attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+	// texture coordinates attribute
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+	glEnableVertexAttribArray(2);
 
+    // Plane(s) VAO
+    unsigned int planesVAO, planesVBO;
+    glGenVertexArrays(1, &planesVAO);
+    glGenBuffers(1, &planesVBO);
+
+    glBindVertexArray(planesVAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, planesVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), planeVertices, GL_STATIC_DRAW);
+
+    // Configure vertex attributes (memory layout)
+    // position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)nullptr);
+    glEnableVertexAttribArray(0);
+    // normal attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    // texture coordinates attribute
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+
+    // Light sources objects VAO
     unsigned int lightVAO, lightVBO;
     glGenVertexArrays(1, &lightVAO);
     glGenBuffers(1, &lightVBO);
 
     glBindVertexArray(lightVAO);
     
-    glBindBuffer(GL_ARRAY_BUFFER, lightVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, cubesVBO); // Same vertices as cubesVAO
+    //glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
     
     // Configure vertex attributes for the light VAO (memory layout)
     // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)nullptr);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)nullptr);
     glEnableVertexAttribArray(0);
 
     // Bind the shader once, it is the same here
     litShader.Use();
-    //
-    //litShader.SetUniformInt("u_Material.diffuse", 0);
+
+    litShader.SetUniformInt("u_Material.texture_diffuse1", 0);
+
 	//litShader.SetUniformInt("u_Material.specular", 1);
     litShader.SetUniformFloat("u_Material.shininess", 32.0f);
 
@@ -216,6 +250,8 @@ int main()
 
         litShader.SetVector3f("u_ViewPosition", camera.GetWorldPosition());
 
+        // Lighting uniforms
+        
         // Update the directional light uniforms
         litShader.SetUniform3f("u_DirectionalLight.direction", -0.2f, -1.0f, -0.3f); // Directional light pointing downwards
         litShader.SetUniform4f("u_DirectionalLight.ambient", 0.2f, 0.2f, 0.2f, 1.0f);
@@ -253,6 +289,8 @@ int main()
 		litShader.SetUniformFloat("u_SpotLight.cutOff", glm::cos(glm::radians(5.0f))); // Inner cut-off angle for the spot light
 		litShader.SetUniformFloat("u_SpotLight.outerCutOff", glm::cos(glm::radians(17.5f))); // Outer cut-off angle for the spot light
 
+        // Geometry uniforms
+
         // Set the model, view and projection matrix uniforms
         glm::mat4 projection = glm::perspective(glm::radians(camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
@@ -262,7 +300,7 @@ int main()
         litShader.SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
 		litShader.SetMatrix4f("u_Model", model); // Set the model matrix for the shader
 
-		backpackModel.Draw(litShader); // Draw the backpack model with the lit shader
+		//backpackModel.Draw(litShader); // Draw the backpack model with the lit shader
 
         //containerTexture.Bind(0); // Bind the texture to texture unit 0
 		//specularTexture.Bind(1); // Bind the specular texture to texture unit 1
@@ -281,6 +319,32 @@ int main()
         //    glDrawArrays(GL_TRIANGLES, 0, 36);
 		//}
 
+        // Render the cubes
+        glBindVertexArray(cubesVAO);
+
+        orangeWallTexture->Bind();
+
+        for (auto cubePosition : cubePositions)
+        {
+            // Calculate the model matrix for each cube
+            glm::mat4 cubeModel = glm::mat4(1.0f);
+            cubeModel = glm::translate(cubeModel, cubePosition);
+            litShader.SetMatrix4f("u_Model", cubeModel);
+
+            // Render once cube
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
+
+        // Render the plane
+        glBindVertexArray(planesVAO);
+
+        lightGroundTexture->Bind();
+
+        glm::mat4 planeModel = glm::mat4(1.0f);
+        litShader.SetMatrix4f("u_Model", planeModel);
+
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
 		unlitShader.Use();
         
         glm::mat4 lightProjection = glm::perspective(glm::radians(camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
@@ -290,10 +354,10 @@ int main()
         
 		// Calculate the point lights model matrices and render them
         glBindVertexArray(lightVAO);
-        for (unsigned int i = 0; i < sizeof(pointLightPositions) / sizeof(pointLightPositions[0]); i++)
+        for (auto & pointLightPosition : pointLightPositions)
         {
             glm::mat4 lightModel = glm::mat4(1.0f);
-            lightModel = glm::translate(lightModel, { glm::sin(currentFrame) * pointLightPositions[i].x, pointLightPositions[i].y, glm::cos(currentFrame) * pointLightPositions[i].z });
+            lightModel = glm::translate(lightModel, { glm::sin(currentFrame) * pointLightPosition.x, pointLightPosition.y, glm::cos(currentFrame) * pointLightPosition.z });
             lightModel = glm::scale(lightModel, glm::vec3(0.2f)); // Scale down the light source
         
             unlitShader.SetUniform4f("u_Color", 1.0f, 1.0f, 1.0f, 1.0f);
@@ -302,13 +366,17 @@ int main()
             // Render the light source model
             glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
+        glBindVertexArray(0);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
     // Resource deallocation
-    //glDeleteVertexArrays(1, &VAO);
+    glDeleteVertexArrays(1, &planesVAO);
+    glDeleteBuffers(1, &planesVBO);
+    glDeleteVertexArrays(1, &cubesVAO);
+    glDeleteBuffers(1, &cubesVBO);
     glDeleteVertexArrays(1, &lightVAO);
     glDeleteBuffers(1, &lightVBO);
 
