@@ -73,7 +73,8 @@ int main()
     }
 
     glEnable(GL_DEPTH_TEST);
-    //glDepthFunc(GL_LESS);
+
+    glEnable(GL_STENCIL_TEST);
 
     // Create shader
     Shader litShader("resources/shaders/Vertex.glsl", "resources/shaders/LitFragment.glsl");
@@ -241,7 +242,7 @@ int main()
 
         // Rendering anything happens here
         glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
         // Wireframe mode
         // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -300,24 +301,23 @@ int main()
         litShader.SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
 		litShader.SetMatrix4f("u_Model", model); // Set the model matrix for the shader
 
-		//backpackModel.Draw(litShader); // Draw the backpack model with the lit shader
+		// Make sure we don't update the stencil buffer when rendering the plane
+		glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE); // Set the stencil operation to replace the stencil value when rendering the plane
+		glStencilMask(0x00); // Disable writing to the stencil buffer
 
-        //containerTexture.Bind(0); // Bind the texture to texture unit 0
-		//specularTexture.Bind(1); // Bind the specular texture to texture unit 1
-        //
-        //glBindVertexArray(VAO);
-        //for (int i = 0; i < sizeof(cubePositions) / sizeof(cubePositions[0]); i++)
-        //{
-        //    // Calculate the model matrix for each cube and render it
-        //    glm::mat4 cubeModel = glm::mat4(1.0f);
-        //    cubeModel = glm::translate(cubeModel, cubePositions[i]);
-        //    float angle = 20.0f * i;
-        //    cubeModel = glm::rotate(cubeModel, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
-        //    litShader.SetMatrix4f("u_Model", cubeModel);
-        //
-        //    // Render one cube
-        //    glDrawArrays(GL_TRIANGLES, 0, 36);
-		//}
+        // Render the plane
+        glBindVertexArray(planesVAO);
+
+        lightGroundTexture->Bind();
+
+        glm::mat4 planeModel = glm::mat4(1.0f);
+        litShader.SetMatrix4f("u_Model", planeModel);
+
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+		// Enable writing to the stencil buffer again
+		glStencilFunc(GL_ALWAYS, 1, 0xFF); // Always pass the stencil test and set the stencil value to 1
+		glStencilMask(0xFF); // Enable writing to the stencil buffer
 
         // Render the cubes
         glBindVertexArray(cubesVAO);
@@ -331,24 +331,44 @@ int main()
             cubeModel = glm::translate(cubeModel, cubePosition);
             litShader.SetMatrix4f("u_Model", cubeModel);
 
-            // Render once cube
+            // Render one cube
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
 
-        // Render the plane
-        glBindVertexArray(planesVAO);
-
-        lightGroundTexture->Bind();
-
-        glm::mat4 planeModel = glm::mat4(1.0f);
-        litShader.SetMatrix4f("u_Model", planeModel);
-
-        glDrawArrays(GL_TRIANGLES, 0, 6);
+		// Render upscaled cubes using the stencil buffer
+        glStencilFunc(GL_NOTEQUAL, 1, 0xFF); // Pass the stencil test if the stencil value is not equal to 1
+        glStencilMask(0x00); // Disable writing to the stencil buffer
+		glDisable(GL_DEPTH_TEST); // Disable depth testing to render the upscaled cubes on top of the floor
 
 		unlitShader.Use();
+
+        glm::mat4 upscaledCubesProjection = projection;
+        glm::mat4 upscaledCubesView = view;
+        unlitShader.SetMatrix4f("u_Projection", upscaledCubesProjection); // Send the projection matrix to the shader
+        unlitShader.SetMatrix4f("u_View", upscaledCubesView); // Pass the camera view matrix to the shader
+
+        // Render the cubes again, but this time they will be upscaled
+        for (auto cubePosition : cubePositions)
+        {
+            // Calculate the model matrix for each cube
+            glm::mat4 cubeModel = glm::mat4(1.0f);
+            cubeModel = glm::translate(cubeModel, cubePosition);
+            cubeModel = glm::scale(cubeModel, glm::vec3(1.075f)); // Scale up the cubes
+            unlitShader.SetMatrix4f("u_Model", cubeModel);
+            unlitShader.SetUniform4f("u_Color", 0.04f, 0.28f, 0.26f, 1.0f);
+            // Render one cube
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+		}
+
+        glEnable(GL_DEPTH_TEST); // Enable depth testing again
+        glStencilMask(0xFF); // Enable writing to the stencil buffer again
+        glStencilFunc(GL_ALWAYS, 1, 0xFF); // Always pass the stencil test and set the stencil value to 1
+
+		// Render the light sources
+		unlitShader.Use();
         
-        glm::mat4 lightProjection = glm::perspective(glm::radians(camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
-        glm::mat4 lightView = camera.GetViewMatrix();
+        glm::mat4 lightProjection = projection;
+        glm::mat4 lightView = view;
         unlitShader.SetMatrix4f("u_Projection", lightProjection); // Send the projection matrix to the shader
         unlitShader.SetMatrix4f("u_View", lightView); // Pass the camera view matrix to the shader
         
