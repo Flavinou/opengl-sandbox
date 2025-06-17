@@ -4,7 +4,7 @@ out vec4 FragColor;
 struct Material 
 {
 	sampler2D texture_diffuse1;
-//	sampler2D texture_specular1;
+	//	sampler2D texture_specular1;
 
 	//	Test with max possible number of textures
 	//	sampler2D textures[32];
@@ -65,9 +65,13 @@ uniform SpotLight u_SpotLight;
 uniform Material u_Material;
 
 // Function prototypes
+float LinearizeDepth(float depth);
 vec4 CalcDirLight(DirectionalLight light, vec3 normal, vec3 viewDir);
 vec4 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir);
 vec4 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir);
+
+float near = 0.1;
+float far = 100.0;
 
 void main()
 {
@@ -89,11 +93,20 @@ void main()
 	// Set the final fragment color
 	FragColor = result;
 
+	// Debug depth buffer
+	FragColor = vec4(vec3(LinearizeDepth(gl_FragCoord.z) / far), 1.0);
+
 	// Debug texture
 	// FragColor = texture(u_Material.texture_diffuse1, TexCoords);
 
 	// Debug normals
 	// FragColor = vec4(Normal.xyz, 1.0);
+}
+
+float LinearizeDepth(float depth)
+{
+	float z = depth * 2.0 - 1.0; // back to normalized device coordinates
+	return (2.0 * near * far) / (far + near - z * (far - near));
 }
 
 vec4 CalcDirLight(DirectionalLight light, vec3 normal, vec3 viewDir)
