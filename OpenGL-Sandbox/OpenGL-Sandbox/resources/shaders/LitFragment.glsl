@@ -94,7 +94,7 @@ void main()
 	FragColor = result;
 
 	// Debug depth buffer
-	FragColor = vec4(vec3(LinearizeDepth(gl_FragCoord.z) / far), 1.0);
+	// FragColor = vec4(vec3(LinearizeDepth(gl_FragCoord.z) / far), 1.0);
 
 	// Debug texture
 	// FragColor = texture(u_Material.texture_diffuse1, TexCoords);
