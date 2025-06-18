@@ -39,6 +39,9 @@
     <ClCompile Include="src\Model.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\TextureManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\Vertex.glsl" />
@@ -47,6 +50,7 @@
     <None Include="resources\shaders\SpotLightFragment.glsl" />
     <None Include="resources\shaders\PointLightFragment.glsl" />
     <None Include="resources\shaders\DirectionalLightFragment.glsl" />
+    <None Include="resources\shaders\HoveringFragment.glsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Shader.h">
@@ -62,6 +66,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Model.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\TextureManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

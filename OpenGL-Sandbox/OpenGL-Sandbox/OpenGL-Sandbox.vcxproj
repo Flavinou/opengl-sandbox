@@ -163,6 +163,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\DirectionalLightFragment.glsl" />
+    <None Include="resources\shaders\HoveringFragment.glsl" />
     <None Include="resources\shaders\LitFragment.glsl" />
     <None Include="resources\shaders\PointLightFragment.glsl" />
     <None Include="resources\shaders\SpotLightFragment.glsl" />

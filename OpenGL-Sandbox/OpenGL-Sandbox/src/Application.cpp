@@ -1,4 +1,5 @@
 #include "Camera.h"
+#include "Mesh.h"
 #include "Model.h"
 #include "Shader.h"
 #include "Texture.h"
@@ -6,6 +7,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <memory>
 #include <string>
 #include <sstream>
 
@@ -35,6 +37,10 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xPos, double yPos);
 void scroll_callback(GLFWwindow* window, double xOffset, double yOffset);
 void process_input(GLFWwindow* window, float ts);
+int read_object_id(unsigned int id, int x, int y);
+
+unsigned int hoveringFBO; // Framebuffer object for hovering effect
+int currentEntityID = -1; // Current entity ID for debugging purposes
 
 int main()
 {
@@ -73,12 +79,12 @@ int main()
     }
 
     glEnable(GL_DEPTH_TEST);
-
     glEnable(GL_STENCIL_TEST);
 
     // Create shader
     Shader litShader("resources/shaders/Vertex.glsl", "resources/shaders/LitFragment.glsl");
     Shader unlitShader("resources/shaders/Vertex.glsl", "resources/shaders/UnlitFragment.glsl");
+	Shader hoveringShader("resources/shaders/Vertex.glsl", "resources/shaders/HoveringFragment.glsl");
 
     // Create model
 	//AssetLoader::Model backpackModel("resources/models/backpack/backpack.obj");
@@ -165,69 +171,27 @@ int main()
         //glm::vec3(0.0f, 0.0f, -3.0f)
 	};
 
-    // Cube(s) VAO
-    unsigned int cubesVAO, cubesVBO;
-    glGenVertexArrays(1, &cubesVAO);
-    glGenBuffers(1, &cubesVBO);
+    std::unique_ptr<AssetLoader::Mesh> cubeMesh = std::make_unique<AssetLoader::Mesh>(cubeVertices, sizeof(cubeVertices) / sizeof(cubeVertices[0]), 8);
+    std::unique_ptr<AssetLoader::Mesh> planeMesh = std::make_unique<AssetLoader::Mesh>(planeVertices, sizeof(planeVertices) / sizeof(planeVertices[0]), 8);
 
-    glBindVertexArray(cubesVAO);
+	// Create the hovering effect framebuffer object (FBO)
+    unsigned int hoveringTexture;
+	glGenFramebuffers(1, &hoveringFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, hoveringFBO);
 
-    glBindBuffer(GL_ARRAY_BUFFER, cubesVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
+	glGenTextures(1, &hoveringTexture);
+	glBindTexture(GL_TEXTURE_2D, hoveringTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R32UI, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RED_INTEGER, GL_INT, nullptr);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, hoveringTexture, 0);
 
-    // Configure vertex attributes (memory layout)
-    // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)nullptr);
-    glEnableVertexAttribArray(0);
-    // normal attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-	// texture coordinates attribute
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-	glEnableVertexAttribArray(2);
-
-    // Plane(s) VAO
-    unsigned int planesVAO, planesVBO;
-    glGenVertexArrays(1, &planesVAO);
-    glGenBuffers(1, &planesVBO);
-
-    glBindVertexArray(planesVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, planesVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), planeVertices, GL_STATIC_DRAW);
-
-    // Configure vertex attributes (memory layout)
-    // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)nullptr);
-    glEnableVertexAttribArray(0);
-    // normal attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-    // texture coordinates attribute
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-    glEnableVertexAttribArray(2);
-
-    // Light sources objects VAO
-    unsigned int lightVAO, lightVBO;
-    glGenVertexArrays(1, &lightVAO);
-    glGenBuffers(1, &lightVBO);
-
-    glBindVertexArray(lightVAO);
-    
-    glBindBuffer(GL_ARRAY_BUFFER, cubesVBO); // Same vertices as cubesVAO
-    //glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
-    
-    // Configure vertex attributes for the light VAO (memory layout)
-    // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)nullptr);
-    glEnableVertexAttribArray(0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind the hovering framebuffer
 
     // Bind the shader once, it is the same here
     litShader.Use();
 
     litShader.SetUniformInt("u_Material.texture_diffuse1", 0);
-
-	//litShader.SetUniformInt("u_Material.specular", 1);
     litShader.SetUniformFloat("u_Material.shininess", 32.0f);
 
     // Render loop
@@ -299,66 +263,89 @@ int main()
 
         litShader.SetMatrix4f("u_Projection", projection); // Send the projection matrix to the shader
         litShader.SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
-		litShader.SetMatrix4f("u_Model", model); // Set the model matrix for the shader
 
 		// Make sure we don't update the stencil buffer when rendering the plane
 		glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE); // Set the stencil operation to replace the stencil value when rendering the plane
 		glStencilMask(0x00); // Disable writing to the stencil buffer
-
-        // Render the plane
-        glBindVertexArray(planesVAO);
 
         lightGroundTexture->Bind();
 
         glm::mat4 planeModel = glm::mat4(1.0f);
         litShader.SetMatrix4f("u_Model", planeModel);
 
-        glDrawArrays(GL_TRIANGLES, 0, 6);
+        //glDrawArrays(GL_TRIANGLES, 0, 6);
+		planeMesh->Draw(litShader);
 
 		// Enable writing to the stencil buffer again
 		glStencilFunc(GL_ALWAYS, 1, 0xFF); // Always pass the stencil test and set the stencil value to 1
 		glStencilMask(0xFF); // Enable writing to the stencil buffer
 
-        // Render the cubes
-        glBindVertexArray(cubesVAO);
-
         orangeWallTexture->Bind();
 
         for (auto cubePosition : cubePositions)
         {
+			litShader.Use();
+
             // Calculate the model matrix for each cube
             glm::mat4 cubeModel = glm::mat4(1.0f);
             cubeModel = glm::translate(cubeModel, cubePosition);
             litShader.SetMatrix4f("u_Model", cubeModel);
 
             // Render one cube
-            glDrawArrays(GL_TRIANGLES, 0, 36);
+			cubeMesh->Draw(litShader);
         }
 
-		// Render upscaled cubes using the stencil buffer
-        glStencilFunc(GL_NOTEQUAL, 1, 0xFF); // Pass the stencil test if the stencil value is not equal to 1
-        glStencilMask(0x00); // Disable writing to the stencil buffer
-		glDisable(GL_DEPTH_TEST); // Disable depth testing to render the upscaled cubes on top of the floor
+		// Render the hovering effect
+		glBindFramebuffer(GL_FRAMEBUFFER, hoveringFBO); // Bind the hovering framebuffer
+		glClear(GL_COLOR_BUFFER_BIT); // Clear the hovering framebuffer
 
-		unlitShader.Use();
+		hoveringShader.Use();
 
-        glm::mat4 upscaledCubesProjection = projection;
-        glm::mat4 upscaledCubesView = view;
-        unlitShader.SetMatrix4f("u_Projection", upscaledCubesProjection); // Send the projection matrix to the shader
-        unlitShader.SetMatrix4f("u_View", upscaledCubesView); // Pass the camera view matrix to the shader
+        hoveringShader.SetMatrix4f("u_Projection", projection); // Send the projection matrix to the shader
+        hoveringShader.SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
 
-        // Render the cubes again, but this time they will be upscaled
         for (auto cubePosition : cubePositions)
         {
             // Calculate the model matrix for each cube
             glm::mat4 cubeModel = glm::mat4(1.0f);
             cubeModel = glm::translate(cubeModel, cubePosition);
-            cubeModel = glm::scale(cubeModel, glm::vec3(1.075f)); // Scale up the cubes
-            unlitShader.SetMatrix4f("u_Model", cubeModel);
-            unlitShader.SetUniform4f("u_Color", 0.04f, 0.28f, 0.26f, 1.0f);
-            // Render one cube
-            glDrawArrays(GL_TRIANGLES, 0, 36);
+            hoveringShader.SetMatrix4f("u_Model", cubeModel); // Set the model matrix for the shader
+
+			// Render one cube
+            cubeMesh->Draw(hoveringShader);
 		}
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind the hovering framebuffer
+
+		// Render the outline of the pointed at cube if the current entity ID is the cube's one
+        if (currentEntityID == cubeMesh->GetId())
+        {
+		    // Render upscaled cubes using the stencil buffer
+            glStencilFunc(GL_NOTEQUAL, 1, 0xFF); // Pass the stencil test if the stencil value is not equal to 1
+            glStencilMask(0x00); // Disable writing to the stencil buffer
+		    glDisable(GL_DEPTH_TEST); // Disable depth testing to render the upscaled cubes on top of the floor
+
+		    unlitShader.Use();
+
+            glm::mat4 upscaledCubesProjection = projection;
+            glm::mat4 upscaledCubesView = view;
+            unlitShader.SetMatrix4f("u_Projection", upscaledCubesProjection); // Send the projection matrix to the shader
+            unlitShader.SetMatrix4f("u_View", upscaledCubesView); // Pass the camera view matrix to the shader
+
+            // Render the cubes again, but this time they will be upscaled
+            for (auto cubePosition : cubePositions)
+            {
+                // Calculate the model matrix for each cube
+                glm::mat4 cubeModel = glm::mat4(1.0f);
+                cubeModel = glm::translate(cubeModel, cubePosition);
+                cubeModel = glm::scale(cubeModel, glm::vec3(1.075f)); // Scale up the cubes
+                unlitShader.SetMatrix4f("u_Model", cubeModel);
+                unlitShader.SetUniform4f("u_Color", 0.04f, 0.28f, 0.26f, 1.0f);
+
+                // Render one cube
+			    cubeMesh->Draw(unlitShader);
+		    }
+        }
 
         glEnable(GL_DEPTH_TEST); // Enable depth testing again
         glStencilMask(0xFF); // Enable writing to the stencil buffer again
@@ -373,7 +360,6 @@ int main()
         unlitShader.SetMatrix4f("u_View", lightView); // Pass the camera view matrix to the shader
         
 		// Calculate the point lights model matrices and render them
-        glBindVertexArray(lightVAO);
         for (auto & pointLightPosition : pointLightPositions)
         {
             glm::mat4 lightModel = glm::mat4(1.0f);
@@ -384,21 +370,24 @@ int main()
             unlitShader.SetMatrix4f("u_Model", lightModel);
         
             // Render the light source model
-            glDrawArrays(GL_TRIANGLES, 0, 36);
+			cubeMesh->Draw(unlitShader);
 		}
+
         glBindVertexArray(0);
+
+        double mouseX, mouseY;
+		glfwGetCursorPos(window, &mouseX, &mouseY);
+        // Read a pixel from the framebuffer (for debugging purposes)
+        if (mouseX >= 0 && mouseY >= 0 && mouseX < SCREEN_WIDTH && mouseY < SCREEN_HEIGHT)
+        {
+            currentEntityID = read_object_id(hoveringFBO, (int)mouseX, (int)mouseY);
+        }
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
-    // Resource deallocation
-    glDeleteVertexArrays(1, &planesVAO);
-    glDeleteBuffers(1, &planesVBO);
-    glDeleteVertexArrays(1, &cubesVAO);
-    glDeleteBuffers(1, &cubesVBO);
-    glDeleteVertexArrays(1, &lightVAO);
-    glDeleteBuffers(1, &lightVBO);
+	glDeleteBuffers(1, &hoveringFBO);
 
     glfwTerminate();
 
@@ -451,4 +440,17 @@ void process_input(GLFWwindow* window, float ts)
         camera.OnKeyPressed(ts, CameraMovement::LEFT);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.OnKeyPressed(ts, CameraMovement::RIGHT);
+}
+
+int read_object_id(unsigned int id, int x, int y)
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, id);
+    unsigned int vertexId; // RGBA format
+    glReadPixels(x, y, 1, 1, GL_RED_INTEGER, GL_INT, &vertexId);
+	std::cout << "Read pixel at (" << x << ", " << y << ") from framebuffer ID: " << id
+        << "Entity ID: " << (int)vertexId << std::endl;
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind the framebuffer
+
+	return vertexId; // Return the alpha value for further processing if needed
 }
