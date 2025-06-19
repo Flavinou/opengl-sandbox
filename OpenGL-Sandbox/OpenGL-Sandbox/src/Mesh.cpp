@@ -4,6 +4,20 @@
 
 namespace AssetLoader
 {
+    Mesh::Mesh(const float* vertices, int verticesCount, int stride)
+    {
+        m_Vertices.reserve(verticesCount);
+        for (int i = 0; i < verticesCount; i += stride)
+        {
+            Vertex vertex{};
+            vertex.Position = glm::vec3(vertices[i], vertices[i + 1], vertices[i + 2]);
+            vertex.Normal = glm::vec3(vertices[i + 3], vertices[i + 4], vertices[i + 5]);
+            vertex.TexCoords = glm::vec2(vertices[i + 6], vertices[i + 7]);
+            m_Vertices.push_back(vertex);
+        }
+        SetupMesh();
+    }
+
 	Mesh::Mesh(const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices, const std::vector<MeshTexture>& textures)
 		: m_Vertices(vertices), m_Indices(indices), m_Textures(textures)
 	{
@@ -38,7 +52,10 @@ namespace AssetLoader
 
 		// Draw elements using indices - ONE draw call per mesh
 		// There is room for optimization here, as we could batch draw calls if multiple meshes share the same textures
-		glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(m_Indices.size()), GL_UNSIGNED_INT, nullptr);
+		if (!m_Indices.empty())
+			glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(m_Indices.size()), GL_UNSIGNED_INT, nullptr);
+		else
+			glDrawArrays(GL_TRIANGLES, 0, static_cast<unsigned int>(m_Vertices.size()));
 
 		glBindVertexArray(0); // Unbind VAO
 	}
@@ -47,15 +64,20 @@ namespace AssetLoader
 	{
 		glGenVertexArrays(1, &m_VAO);
 		glGenBuffers(1, &m_VBO);
-		glGenBuffers(1, &m_EBO);
+
+		if (!m_Indices.empty())
+			glGenBuffers(1, &m_EBO);
 
 		glBindVertexArray(m_VAO);
 		glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
 		glBufferData(GL_ARRAY_BUFFER, m_Vertices.size() * sizeof(Vertex), &m_Vertices[0], GL_STATIC_DRAW);
 
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_Indices.size() * sizeof(unsigned int), &m_Indices[0], GL_STATIC_DRAW);
-	
+		if (!m_Indices.empty())
+		{
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_Indices.size() * sizeof(unsigned int), &m_Indices[0], GL_STATIC_DRAW);
+		}
+
 		// Vertex Positions
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
