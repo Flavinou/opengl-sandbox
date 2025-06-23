@@ -2,13 +2,15 @@
 #include "Mesh.h"
 #include "Model.h"
 #include "Shader.h"
-#include "Texture.h"
+#include "TextureManager.h"
 
 #include <iostream>
 #include <fstream>
+#include <map>
 #include <memory>
 #include <string>
 #include <sstream>
+#include <vector>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -74,13 +76,23 @@ int main()
     }
 
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     // Create shader
     Shader litShader("resources/shaders/Vertex.glsl", "resources/shaders/LitFragment.glsl");
     Shader unlitShader("resources/shaders/Vertex.glsl", "resources/shaders/UnlitFragment.glsl");
+    Shader textureShader("resources/shaders/Vertex.glsl", "resources/shaders/TextureFragment.glsl");
+
+    // Load textures
+    auto orangeWallTexture = TextureManager::Instance().Get("resources/textures/proto_wall_orange.png");
+    auto lightGroundTexture = TextureManager::Instance().Get("resources/textures/proto_ground_light.png");
+    auto grassTexture = TextureManager::Instance().Get("resources/textures/grass.png");
+    auto windowTexture = TextureManager::Instance().Get("resources/textures/blending_transparent_window.png");
 
     // Create model
-	std::unique_ptr<AssetLoader::Model> backpackModel = std::make_unique<AssetLoader::Model>("resources/models/backpack/backpack.obj");
+	//std::unique_ptr<AssetLoader::Model> backpackModel = std::make_unique<AssetLoader::Model>("resources/models/backpack/backpack.obj");
 
     // Renderer data - the vertices below define a cube that is located at the center of the screen
     float cubeVertices[] =
@@ -128,6 +140,37 @@ int main()
         -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,     0.0f, 1.0f
     };
 
+    // Cubes positions
+    glm::vec3 cubePositions[] =
+    {
+        glm::vec3(-1.0f, 0.0f, -1.0f),
+        glm::vec3(2.0f, 0.0f, 0.0f)
+    };
+
+    // Plane vertices
+    float planeVertices[] =
+    {
+        // positions            // normals          // texture coordinates (note we set these higher than 1 (together with GL_REPEAT as texture wrapping mode). this will cause the floor texture to repeat)
+         5.0f, -0.5f,  5.0f,    0.0f, 1.0f, 0.0f,   2.0f, 0.0f,
+        -5.0f, -0.5f,  5.0f,    0.0f, 1.0f, 0.0f,   0.0f, 0.0f,
+        -5.0f, -0.5f, -5.0f,    0.0f, 1.0f, 0.0f,   0.0f, 2.0f,
+
+         5.0f, -0.5f,  5.0f,    0.0f, 1.0f, 0.0f,   2.0f, 0.0f,
+        -5.0f, -0.5f, -5.0f,    0.0f, 1.0f, 0.0f,   0.0f, 2.0f,
+         5.0f, -0.5f, -5.0f,    0.0f, 1.0f, 0.0f,   2.0f, 2.0f
+    };
+
+    float quadVertices[] =
+    {
+        // positions            // normals          // texture coordinates
+        -0.5f, -0.5f, 0.0f,      0.0f, 0.0f, 1.0f,   0.0f, 0.0f,
+        -0.5f,  0.5f, 0.0f,      0.0f, 0.0f, 1.0f,   0.0f, 1.0f,
+         0.5f,  0.5f, 0.0f,      0.0f, 0.0f, 1.0f,   1.0f, 1.0f,
+        -0.5f, -0.5f, 0.0f,      0.0f, 0.0f, 1.0f,   0.0f, 0.0f,
+         0.5f,  0.5f, 0.0f,      0.0f, 0.0f, 1.0f,   1.0f, 1.0f,
+         0.5f, -0.5f, 0.0f,      0.0f, 0.0f, 1.0f,   1.0f, 0.0f
+    };
+
     // Point lights positions in the world
     glm::vec3 pointLightPositions[] =
     {
@@ -137,11 +180,27 @@ int main()
         //glm::vec3(0.0f, 0.0f, -3.0f)
 	};
 
+    std::unique_ptr<AssetLoader::Mesh> cubeMesh = std::make_unique<AssetLoader::Mesh>(cubeVertices, sizeof(cubeVertices) / sizeof(cubeVertices[0]), 8);
+    std::unique_ptr<AssetLoader::Mesh> planeMesh = std::make_unique<AssetLoader::Mesh>(planeVertices, sizeof(planeVertices) / sizeof(planeVertices[0]), 8);
+    std::unique_ptr<AssetLoader::Mesh> quadMesh = std::make_unique<AssetLoader::Mesh>(quadVertices, sizeof(quadVertices) / sizeof(quadVertices[0]), 8);
+
     std::unique_ptr<AssetLoader::Mesh> lightSourceMesh = std::make_unique<AssetLoader::Mesh>(cubeVertices, sizeof(cubeVertices) / sizeof(cubeVertices[0]), 8);
+
+    // Vegetation
+    std::vector<glm::vec3> vegetation;
+    vegetation.emplace_back(-1.5f, 0.0f, -0.48f);
+    vegetation.emplace_back(1.5f, 0.0f, 0.51f);
+    vegetation.emplace_back(0.0f, 0.0f, 0.7f);
+    vegetation.emplace_back(-0.3f, 0.0f, -2.3f);
+    vegetation.emplace_back(0.5f, 0.0f, -0.6f);
+
+
+    std::map<float, glm::vec3> sortedTransparentEntities;
 
     // Bind the shader once, it is the same here
     litShader.Use();
     litShader.SetUniformFloat("u_Material.shininess", 32.0f);
+    litShader.SetUniformInt("u_Material.texture_diffuse1", 0);
 
     // Render loop
     while (!glfwWindowShouldClose(window))
@@ -153,12 +212,19 @@ int main()
         // Handle user input
         process_input(window, deltaTime);
 
+        // Sort the transparent objects before rendering
+        for (auto grassPosition : vegetation)
+        {
+            float distance = glm::length(camera.GetWorldPosition() - grassPosition);
+            sortedTransparentEntities[distance] = grassPosition;
+        }
+
         // Rendering anything happens here
         glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Wireframe mode
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
         litShader.Use();
 
@@ -210,7 +276,44 @@ int main()
         litShader.SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
 		litShader.SetMatrix4f("u_Model", model); // Set the model matrix for the shader
 
-		backpackModel->Draw(litShader); // Draw the backpack model with the lit shader
+        // Render the plane
+        lightGroundTexture->Bind();
+
+        planeMesh->Draw(litShader);
+
+        // Render the cubes
+        orangeWallTexture->Bind();
+
+        for (auto cubePosition : cubePositions)
+        {
+            // Calculate the model matrix for each cube
+            glm::mat4 cubeModel = glm::mat4(1.0f);
+            cubeModel = glm::translate(cubeModel, cubePosition);
+            litShader.SetMatrix4f("u_Model", cubeModel);
+
+            // Render one cube
+            cubeMesh->Draw(litShader);
+        }
+
+        // Render the grass
+        windowTexture->Bind();
+
+        windowTexture->SetWrapMode(GL_CLAMP_TO_EDGE);
+        windowTexture->SetWrapMode(GL_CLAMP_TO_EDGE);
+
+        textureShader.Use();
+
+        textureShader.SetUniformInt("u_Texture1", 0);
+        textureShader.SetMatrix4f("u_Projection", projection); // Send the projection matrix to the shader
+        textureShader.SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
+
+        for (std::map<float, glm::vec3>::reverse_iterator it = sortedTransparentEntities.rbegin(); it != sortedTransparentEntities.rend(); ++it)
+        {
+            glm::mat4 grassModel = glm::translate(glm::mat4(1.0f), it->second);
+            textureShader.SetMatrix4f("u_Model", grassModel);
+
+            quadMesh->Draw(textureShader);
+        }
 
 		unlitShader.Use();
         

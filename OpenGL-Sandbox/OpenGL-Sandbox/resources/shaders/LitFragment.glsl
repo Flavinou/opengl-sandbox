@@ -4,10 +4,7 @@ out vec4 FragColor;
 struct Material 
 {
 	sampler2D texture_diffuse1;
-//	sampler2D texture_specular1;
-
-	//	Test with max possible number of textures
-	//	sampler2D textures[32];
+	//	sampler2D texture_specular1;
 
 	float shininess;
 };
