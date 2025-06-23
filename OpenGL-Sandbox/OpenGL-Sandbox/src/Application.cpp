@@ -74,6 +74,10 @@ int main()
     }
 
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+
+    glCullFace(GL_BACK); // Discards the back faces !
+    glFrontFace(GL_CCW);
 
     // Create shader
     Shader litShader("resources/shaders/Vertex.glsl", "resources/shaders/LitFragment.glsl");
@@ -82,50 +86,66 @@ int main()
     // Create model
 	std::unique_ptr<AssetLoader::Model> backpackModel = std::make_unique<AssetLoader::Model>("resources/models/backpack/backpack.obj");
 
+    Texture wallTexture("resources/textures/wall.jpg");
+
     // Renderer data - the vertices below define a cube that is located at the center of the screen
-    float cubeVertices[] =
-    {   // positions            // normals              // texture coords
-        -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     0.0f, 0.0f,
-         0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     1.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     0.0f, 0.0f,
-                                 
-        -0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      0.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      0.0f, 0.0f,
-                                 
-        -0.5f,  0.5f,  0.5f,     -1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,     -1.0f,  0.0f,  0.0f,     1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,     -1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,     -1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,     -1.0f,  0.0f,  0.0f,     0.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,     -1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
-                                 
-         0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,     1.0f,  0.0f,  0.0f,     1.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,     1.0f,  0.0f,  0.0f,     0.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
-                                 
-        -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,     0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,     1.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,     1.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,     1.0f, 0.0f,
-        -0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,     0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,     0.0f, 1.0f,
-                                 
-        -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,     0.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,     1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,     1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,     1.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,     0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,     0.0f, 1.0f
+    float cubeVertices[] = {
+        // Back face            // normals                // texture coordinates
+        -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,      0.0f, 0.0f, // Bottom-left
+         0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,      1.0f, 1.0f, // top-right
+         0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,      1.0f, 0.0f, // bottom-right         
+         0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,      1.0f, 1.0f, // top-right
+        -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,      0.0f, 0.0f, // bottom-left
+        -0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,      0.0f, 1.0f, // top-left
+        // Front face            
+        -0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,       0.0f, 0.0f, // bottom-left
+         0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,       1.0f, 0.0f, // bottom-right
+         0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,       1.0f, 1.0f, // top-right
+         0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,       1.0f, 1.0f, // top-right
+        -0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,       0.0f, 1.0f, // top-left
+        -0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,       0.0f, 0.0f, // bottom-left
+        // Left face             
+        -0.5f,  0.5f,  0.5f,     -1.0f,  0.0f,  0.0f,     1.0f, 0.0f, // top-right
+        -0.5f,  0.5f, -0.5f,     -1.0f,  0.0f,  0.0f,     1.0f, 1.0f, // top-left
+        -0.5f, -0.5f, -0.5f,     -1.0f,  0.0f,  0.0f,     0.0f, 1.0f, // bottom-left
+        -0.5f, -0.5f, -0.5f,     -1.0f,  0.0f,  0.0f,     0.0f, 1.0f, // bottom-left
+        -0.5f, -0.5f,  0.5f,     -1.0f,  0.0f,  0.0f,     0.0f, 0.0f, // bottom-right
+        -0.5f,  0.5f,  0.5f,     -1.0f,  0.0f,  0.0f,     1.0f, 0.0f, // top-right
+        // Right face            
+         0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,      1.0f, 0.0f, // top-left
+         0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,      0.0f, 1.0f, // bottom-right
+         0.5f,  0.5f, -0.5f,     1.0f,  0.0f,  0.0f,      1.0f, 1.0f, // top-right         
+         0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,      0.0f, 1.0f, // bottom-right
+         0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,      1.0f, 0.0f, // top-left
+         0.5f, -0.5f,  0.5f,     1.0f,  0.0f,  0.0f,      0.0f, 0.0f, // bottom-left     
+         // Bottom face          
+         -0.5f, -0.5f, -0.5f,    0.0f, -1.0f,  0.0f,       0.0f, 1.0f, // top-right
+          0.5f, -0.5f, -0.5f,    0.0f, -1.0f,  0.0f,       1.0f, 1.0f, // top-left
+          0.5f, -0.5f,  0.5f,    0.0f, -1.0f,  0.0f,       1.0f, 0.0f, // bottom-left
+          0.5f, -0.5f,  0.5f,    0.0f, -1.0f,  0.0f,       1.0f, 0.0f, // bottom-left
+         -0.5f, -0.5f,  0.5f,    0.0f, -1.0f,  0.0f,       0.0f, 0.0f, // bottom-right
+         -0.5f, -0.5f, -0.5f,    0.0f, -1.0f,  0.0f,       0.0f, 1.0f, // top-right
+         // Top face             
+         -0.5f,  0.5f, -0.5f,    0.0f,  1.0f,  0.0f,       0.0f, 1.0f, // top-left
+          0.5f,  0.5f,  0.5f,    0.0f,  1.0f,  0.0f,       1.0f, 0.0f, // bottom-right
+          0.5f,  0.5f, -0.5f,    0.0f,  1.0f,  0.0f,       1.0f, 1.0f, // top-right     
+          0.5f,  0.5f,  0.5f,    0.0f,  1.0f,  0.0f,       1.0f, 0.0f, // bottom-right
+         -0.5f,  0.5f, -0.5f,    0.0f,  1.0f,  0.0f,       0.0f, 1.0f, // top-left
+         -0.5f,  0.5f,  0.5f,    0.0f,  1.0f,  0.0f,       0.0f, 0.0f  // bottom-left        
+    };
+
+
+    // Plane vertices
+    float planeVertices[] =
+    {
+        // positions            // normals          // texture coordinates
+        -0.5f, -0.5f, 0.5f,    0.0f, 0.0f, 1.0f,   0.0f, 0.0f, // bottom left
+         0.5f, -0.5f, 0.5f,    0.0f, 0.0f, 1.0f,   1.0f, 0.0f, // bottom right
+         0.5f,  0.5f, 0.5f,    0.0f, 0.0f, 1.0f,   1.0f, 1.0f, // top right
+                                      
+        -0.5f, -0.5f, 0.5f,    0.0f, 0.0f, 1.0f,   0.0f, 0.0f, // bottom left
+         0.5f,  0.5f, 0.5f,    0.0f, 0.0f, 1.0f,   1.0f, 1.0f, // top right
+        -0.5f,  0.5f, 0.5f,    0.0f, 0.0f, 1.0f,   0.0f, 1.0f  // top left
     };
 
     // Point lights positions in the world
@@ -137,11 +157,14 @@ int main()
         //glm::vec3(0.0f, 0.0f, -3.0f)
 	};
 
+    std::unique_ptr<AssetLoader::Mesh> cubeMesh = std::make_unique<AssetLoader::Mesh>(cubeVertices, sizeof(cubeVertices) / sizeof(cubeVertices[0]), 8);
+    std::unique_ptr<AssetLoader::Mesh> planeMesh = std::make_unique<AssetLoader::Mesh>(planeVertices, sizeof(planeVertices) / sizeof(planeVertices[0]), 8);
     std::unique_ptr<AssetLoader::Mesh> lightSourceMesh = std::make_unique<AssetLoader::Mesh>(cubeVertices, sizeof(cubeVertices) / sizeof(cubeVertices[0]), 8);
 
     // Bind the shader once, it is the same here
     litShader.Use();
     litShader.SetUniformFloat("u_Material.shininess", 32.0f);
+    litShader.SetUniformInt("u_Material.texture_diffuse1", 0);
 
     // Render loop
     while (!glfwWindowShouldClose(window))
@@ -158,7 +181,7 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Wireframe mode
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
         litShader.Use();
 
@@ -210,7 +233,21 @@ int main()
         litShader.SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
 		litShader.SetMatrix4f("u_Model", model); // Set the model matrix for the shader
 
-		backpackModel->Draw(litShader); // Draw the backpack model with the lit shader
+		//backpackModel->Draw(litShader); // Draw the backpack model with the lit shader
+
+        // Render the cube
+        wallTexture.Bind();
+        
+        cubeMesh->Draw(litShader);
+
+        // Render the plane
+        wallTexture.Bind();
+
+        glm::mat4 planeModel = glm::mat4(1.0f);
+        planeModel = glm::scale(planeModel, glm::vec3(5.0f));
+        litShader.SetMatrix4f("u_Model", planeModel);
+
+        planeMesh->Draw(litShader);
 
 		unlitShader.Use();
         
