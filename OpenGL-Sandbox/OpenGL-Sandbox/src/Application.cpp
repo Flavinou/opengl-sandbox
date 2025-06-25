@@ -1,18 +1,10 @@
-#include "Camera.h"
-#include "Mesh.h"
-#include "Model.h"
-#include "Shader.h"
-#include "Texture.h"
+#include "Application.h"
 
 #include <iostream>
 #include <fstream>
-#include <memory>
 #include <string>
 #include <sstream>
 
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <stb_image/stb_image.h>
@@ -21,24 +13,49 @@
 const unsigned int SCREEN_WIDTH = 1600;
 const unsigned int SCREEN_HEIGHT = 900;
 
-// Camera system
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f);
-
-glm::vec2 lastMousePos = { SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 };
-bool firstMouse = true; // First time the mouse is captured by the window on focus
-
-// Time step
-float deltaTime = 0.0f; // Time betwwen current frame and last frame
-float lastFrame = 0.0f; // Time of last frame
-
-// User input
-void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-void mouse_callback(GLFWwindow* window, double xPos, double yPos);
-void scroll_callback(GLFWwindow* window, double xOffset, double yOffset);
-void process_input(GLFWwindow* window, float ts);
-
 int main()
 {
+	Application* app = new Application(SCREEN_WIDTH, SCREEN_HEIGHT, Camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f));
+
+    app->Run();
+
+	delete app;
+
+    return 0;
+}
+
+void Application::FramebufferSizeCallback(int width, int height)
+{
+    glViewport(0, 0, width, height);
+}
+
+void Application::MouseCallback(double xPos, double yPos)
+{
+    if (m_FirstMouse)
+    {
+        m_LastMousePos = { (float)xPos, (float)yPos };
+        m_FirstMouse = false;
+    }
+
+    glm::vec2 offset = 
+    { 
+        xPos - m_LastMousePos.x, 
+        m_LastMousePos.y - yPos // reversed since y-coordinates range from bottom to top
+    };
+    m_LastMousePos = { (float)xPos, (float)yPos };
+
+    m_Camera.OnMouseMove(offset);
+}
+
+void Application::ScrollCallback(double xOffset, double yOffset)
+{
+    m_Camera.OnMouseScroll(yOffset);
+}
+
+Application::Application(int viewportWidth, int viewportHeight, const Camera& camera)
+	: m_ViewportWidth(viewportWidth), m_ViewportHeight(viewportHeight), m_Camera(camera)
+{
+	// GLFW initialization and window creation are handled in the application creation
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -48,41 +65,119 @@ int main()
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-    // Window creation
-    GLFWwindow* window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "OpenGL Sandbox", NULL, NULL);
-    if (window == NULL)
+    // Create the window
+    m_Window = glfwCreateWindow(m_ViewportWidth, m_ViewportHeight, "OpenGL Sandbox", NULL, NULL);
+    if (m_Window == NULL)
     {
-        std::cout << "Failed to create GLFW window!" << std::endl;
-        return -1;
+        std::cout << "[ERROR]: Failed to create GLFW window!" << std::endl;
+        glfwTerminate();
+        return;
     }
 
-    glfwMakeContextCurrent(window);
+    glfwMakeContextCurrent(m_Window);
+
+    // Load OpenGL function pointers using GLAD
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+    {
+        std::cout << "[ERROR]: Failed to initialize GLAD!" << std::endl;
+        return;
+    }
 
     // Capture mouse by default when the application gets focus
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+	// Allows us to access the Application instance from GLFW callbacks
+    glfwSetWindowUserPointer(m_Window, this);
 
     // Set window callbacks
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-    glfwSetCursorPosCallback(window, mouse_callback);
-    glfwSetScrollCallback(window, scroll_callback);
+    glfwSetFramebufferSizeCallback(m_Window, [](GLFWwindow* window, int width, int height)
+    {
+		auto app = static_cast<Application*>(glfwGetWindowUserPointer(window));
+		app->FramebufferSizeCallback(width, height);
+    });
+
+    glfwSetCursorPosCallback(m_Window, [](GLFWwindow* window, double xpos, double ypos) 
+    {
+		auto app = static_cast<Application*>(glfwGetWindowUserPointer(window));
+		app->MouseCallback(xpos, ypos);
+    });
+
+    glfwSetScrollCallback(m_Window, [](GLFWwindow* window, double xoffset, double yoffset)
+    {
+		auto app = static_cast<Application*>(glfwGetWindowUserPointer(window));
+		app->ScrollCallback(xoffset, yoffset);
+    });
 
     // Load all OpenGL function pointers
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
         std::cout << "[ERROR]: Failed to initialize GLAD!" << std::endl;
-        return -1;
+        return;
     }
 
+	Initialize(); // Initialize OpenGL settings and resources
+}
+
+Application::~Application()
+{
+    // Cleanup GLFW resources
+    if (m_Window)
+    {
+        glfwDestroyWindow(m_Window);
+	}
+
+    glfwTerminate();
+}
+
+void Application::Initialize()
+{
     glEnable(GL_DEPTH_TEST);
 
-    // Create shader
-    Shader litShader("resources/shaders/Vertex.glsl", "resources/shaders/LitFragment.glsl");
-    Shader unlitShader("resources/shaders/Vertex.glsl", "resources/shaders/UnlitFragment.glsl");
+    // Create framebuffer
+    unsigned int framebuffer;
+    glGenFramebuffers(1, &framebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+
+    // Create a texture to render to
+    unsigned int textureColorBuffer;
+    glGenTextures(1, &textureColorBuffer);
+    glBindTexture(GL_TEXTURE_2D, textureColorBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_ViewportWidth, m_ViewportHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    // Attach the texture to the framebuffer
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorBuffer, 0);
+
+    // Create a renderbuffer object for depth and stencil testing
+    unsigned int rboDepthStencil;
+    glGenRenderbuffers(1, &rboDepthStencil);
+    glBindRenderbuffer(GL_RENDERBUFFER, rboDepthStencil);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, m_ViewportWidth, m_ViewportHeight);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+    // Attach the renderbuffer to the framebuffer
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rboDepthStencil);
+
+    // Check if the framebuffer is complete
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
+        std::cout << "[ERROR]: Framebuffer is not complete!" << std::endl;
+        return;
+    }
+
+    // Unbind the framebuffer to avoid accidental modifications
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Create shaders
+    m_LitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/LitFragment.glsl");
+    m_UnlitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/UnlitFragment.glsl");
 
     // Create model
-	std::unique_ptr<AssetLoader::Model> backpackModel = std::make_unique<AssetLoader::Model>("resources/models/backpack/backpack.obj");
+    m_BackpackModel = std::make_shared<AssetLoader::Model>("resources/models/backpack/backpack.obj");
 
-    // Renderer data - the vertices below define a cube that is located at the center of the screen
+	// Create light source mesh
     float cubeVertices[] =
     {   // positions            // normals              // texture coords
         -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     0.0f, 0.0f,
@@ -91,35 +186,35 @@ int main()
          0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     1.0f, 1.0f,
         -0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     0.0f, 1.0f,
         -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     0.0f, 0.0f,
-                                 
+
         -0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      0.0f, 0.0f,
          0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      1.0f, 0.0f,
          0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      1.0f, 1.0f,
          0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      1.0f, 1.0f,
         -0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      0.0f, 1.0f,
         -0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      0.0f, 0.0f,
-                                 
+
         -0.5f,  0.5f,  0.5f,     -1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
         -0.5f,  0.5f, -0.5f,     -1.0f,  0.0f,  0.0f,     1.0f, 1.0f,
         -0.5f, -0.5f, -0.5f,     -1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
         -0.5f, -0.5f, -0.5f,     -1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
         -0.5f, -0.5f,  0.5f,     -1.0f,  0.0f,  0.0f,     0.0f, 0.0f,
         -0.5f,  0.5f,  0.5f,     -1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
-                                 
+
          0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
          0.5f,  0.5f, -0.5f,     1.0f,  0.0f,  0.0f,     1.0f, 1.0f,
          0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
          0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
          0.5f, -0.5f,  0.5f,     1.0f,  0.0f,  0.0f,     0.0f, 0.0f,
          0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
-                                 
+
         -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,     0.0f, 1.0f,
          0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,     1.0f, 1.0f,
          0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,     1.0f, 0.0f,
          0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,     1.0f, 0.0f,
         -0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,     0.0f, 0.0f,
         -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,     0.0f, 1.0f,
-                                 
+
         -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,     0.0f, 1.0f,
          0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,     1.0f, 1.0f,
          0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,     1.0f, 0.0f,
@@ -128,166 +223,155 @@ int main()
         -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,     0.0f, 1.0f
     };
 
-    // Point lights positions in the world
-    glm::vec3 pointLightPositions[] =
+    // Plane vertices
+    float planeVertices[] =
+    {
+        // positions            // normals          // texture coordinates (note we set these higher than 1 (together with GL_REPEAT as texture wrapping mode). this will cause the floor texture to repeat)
+         5.0f, -0.5f,  5.0f,    0.0f, 1.0f, 0.0f,   2.0f, 0.0f,
+        -5.0f, -0.5f,  5.0f,    0.0f, 1.0f, 0.0f,   0.0f, 0.0f,
+        -5.0f, -0.5f, -5.0f,    0.0f, 1.0f, 0.0f,   0.0f, 2.0f,
+
+         5.0f, -0.5f,  5.0f,    0.0f, 1.0f, 0.0f,   2.0f, 0.0f,
+        -5.0f, -0.5f, -5.0f,    0.0f, 1.0f, 0.0f,   0.0f, 2.0f,
+         5.0f, -0.5f, -5.0f,    0.0f, 1.0f, 0.0f,   2.0f, 2.0f
+    };
+
+    m_PointLightPositions =
     {
         //glm::vec3(0.7f, 0.2f, 2.0f),
         //glm::vec3(2.3f, -3.3f, -4.0f),
         glm::vec3(-4.0f, 2.0f, -2.5f),
         //glm::vec3(0.0f, 0.0f, -3.0f)
-	};
+    };
 
-    std::unique_ptr<AssetLoader::Mesh> lightSourceMesh = std::make_unique<AssetLoader::Mesh>(cubeVertices, sizeof(cubeVertices) / sizeof(cubeVertices[0]), 8);
+	// Create meshes
+    m_LightSourceMesh = std::make_shared<AssetLoader::Mesh>(cubeVertices, sizeof(cubeVertices) / sizeof(cubeVertices[0]), 8);
 
-    // Bind the shader once, it is the same here
-    litShader.Use();
-    litShader.SetUniformFloat("u_Material.shininess", 32.0f);
+    // Bind the lit shader first to set the material shininess which is not meant to change
+    m_LitShader->Use();
+	m_LitShader->SetUniformFloat("u_Material.shininess", 32.0f);
+}
 
-    // Render loop
-    while (!glfwWindowShouldClose(window))
+void Application::Run()
+{
+    // Main rendering loop
+    while (!glfwWindowShouldClose(m_Window))
     {
         float currentFrame = (float)glfwGetTime();
-        deltaTime = currentFrame - lastFrame;
-        lastFrame = currentFrame;
+        m_DeltaTime = currentFrame - m_LastFrameTime;
+        m_LastFrameTime = currentFrame;
 
         // Handle user input
-        process_input(window, deltaTime);
+        ProcessInput();
 
-        // Rendering anything happens here
-        glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        // Render the scene
+        RenderScene();
 
-        // Wireframe mode
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-        litShader.Use();
-
-        litShader.SetVector3f("u_ViewPosition", camera.GetWorldPosition());
-
-        // Update the directional light uniforms
-        litShader.SetUniform3f("u_DirectionalLight.direction", -0.2f, -1.0f, -0.3f); // Directional light pointing downwards
-        litShader.SetUniform4f("u_DirectionalLight.ambient", 0.2f, 0.2f, 0.2f, 1.0f);
-        litShader.SetUniform4f("u_DirectionalLight.diffuse", 0.8f, 0.8f, 0.8f, 1.0f);
-        litShader.SetUniform4f("u_DirectionalLight.specular", 0.5f, 0.5f, 0.5f, 1.0f);
-
-		// Update the point light uniforms
-        const glm::vec3 pointLightAttenuationFactors{ 1.0f, 0.09f, 0.032f }; // Constant, linear and quadratic attenuation factors
-        for (unsigned int i = 0; i < sizeof(pointLightPositions) / sizeof(pointLightPositions[0]); i++)
-        {
-            std::string pointLightName;
-			pointLightName.reserve(48); // Reserve space for the string to avoid reallocations
-			pointLightName = "u_PointLights[" + std::to_string(i) + "]";
-            litShader.SetVector3f(pointLightName + ".position", { glm::sin(currentFrame) * pointLightPositions[i].x, pointLightPositions[i].y, glm::cos(currentFrame) * pointLightPositions[i].z });
-			litShader.SetUniform4f(pointLightName + ".ambient", 0.05f, 0.05f, 0.05f, 1.0f); // Ambient light color
-			litShader.SetUniform4f(pointLightName + ".diffuse", 0.8f, 0.8f, 0.8f, 1.0f); // Diffuse light color
-			litShader.SetUniform4f(pointLightName + ".specular", 1.0f, 1.0f, 1.0f, 1.0f); // Specular light color
-        
-		    // We want the point light to cover a distance of 50 units, so we set the attenuation factors accordingly
-		    litShader.SetUniformFloat(pointLightName + ".constant", pointLightAttenuationFactors.x);
-		    litShader.SetUniformFloat(pointLightName + ".linear", pointLightAttenuationFactors.y);
-		    litShader.SetUniformFloat(pointLightName + ".quadratic", pointLightAttenuationFactors.z);
-        }
-
-		// Update the spot light uniforms
-		// The spot light is the camera itself, so we set its position to the camera's world position
-		litShader.SetVector3f("u_SpotLight.position", camera.GetWorldPosition()); // Position of the spot light
-		litShader.SetVector3f("u_SpotLight.direction", camera.GetForwardDirection()); // Direction of the spot light
-		litShader.SetUniform4f("u_SpotLight.ambient", 0.0f, 0.0f, 0.0f, 1.0f); // Ambient light color
-		litShader.SetUniform4f("u_SpotLight.diffuse", 1.0f, 1.0f, 1.0f, 1.0f); // Diffuse light color
-		litShader.SetUniform4f("u_SpotLight.specular", 1.0f, 1.0f, 1.0f, 1.0f); // Specular light color
-        litShader.SetUniformFloat("u_SpotLight.constant", pointLightAttenuationFactors.x);
-        litShader.SetUniformFloat("u_SpotLight.linear", pointLightAttenuationFactors.y);
-        litShader.SetUniformFloat("u_SpotLight.quadratic", pointLightAttenuationFactors.z);
-		litShader.SetUniformFloat("u_SpotLight.cutOff", glm::cos(glm::radians(5.0f))); // Inner cut-off angle for the spot light
-		litShader.SetUniformFloat("u_SpotLight.outerCutOff", glm::cos(glm::radians(17.5f))); // Outer cut-off angle for the spot light
-
-        // Set the model, view and projection matrix uniforms
-        glm::mat4 projection = glm::perspective(glm::radians(camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
-        glm::mat4 view = camera.GetViewMatrix();
-        glm::mat4 model = glm::mat4(1.0f);
-
-        litShader.SetMatrix4f("u_Projection", projection); // Send the projection matrix to the shader
-        litShader.SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
-		litShader.SetMatrix4f("u_Model", model); // Set the model matrix for the shader
-
-		backpackModel->Draw(litShader); // Draw the backpack model with the lit shader
-
-		unlitShader.Use();
-        
-        glm::mat4 lightProjection = glm::perspective(glm::radians(camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
-        glm::mat4 lightView = camera.GetViewMatrix();
-        unlitShader.SetMatrix4f("u_Projection", lightProjection); // Send the projection matrix to the shader
-        unlitShader.SetMatrix4f("u_View", lightView); // Pass the camera view matrix to the shader
-        
-		// Calculate the point lights model matrices and render them
-        for (unsigned int i = 0; i < sizeof(pointLightPositions) / sizeof(pointLightPositions[0]); i++)
-        {
-            glm::mat4 lightModel = glm::mat4(1.0f);
-            lightModel = glm::translate(lightModel, { glm::sin(currentFrame) * pointLightPositions[i].x, pointLightPositions[i].y, glm::cos(currentFrame) * pointLightPositions[i].z });
-            lightModel = glm::scale(lightModel, glm::vec3(0.2f)); // Scale down the light source
-        
-            unlitShader.SetUniform4f("u_Color", 1.0f, 1.0f, 1.0f, 1.0f);
-            unlitShader.SetMatrix4f("u_Model", lightModel);
-        
-            // Render the light source model
-            lightSourceMesh->Draw(unlitShader);
-		}
-
-        glfwSwapBuffers(window);
+		// Swap buffers and poll events
+        glfwSwapBuffers(m_Window);
         glfwPollEvents();
-    }
-
-    // Resource deallocation (taken care of in the AssetLoader::Mesh destructor)
-
-    glfwTerminate();
-
-    return 0;
+	}
 }
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height)
+void Application::ProcessInput()
 {
-    glViewport(0, 0, width, height);
-}
+    const float cameraSpeed = 2.5f * m_DeltaTime;
 
-void mouse_callback(GLFWwindow* window, double xPos, double yPos)
-{
-    if (firstMouse)
+    if (glfwGetKey(m_Window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
     {
-        lastMousePos = { (float)xPos, (float)yPos };
-        firstMouse = false;
-    }
-
-    glm::vec2 offset = 
-    { 
-        xPos - lastMousePos.x, 
-        lastMousePos.y - yPos // reversed since y-coordinates range from bottom to top
-    };
-    lastMousePos = { (float)xPos, (float)yPos };
-
-    camera.OnMouseMove(offset);
-}
-
-void scroll_callback(GLFWwindow* window, double xOffset, double yOffset)
-{
-    camera.OnMouseScroll(yOffset);
-}
-
-void process_input(GLFWwindow* window, float ts)
-{
-    const float cameraSpeed = 2.5f * ts;
-
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-    {
-        glfwSetWindowShouldClose(window, true);
+        glfwSetWindowShouldClose(m_Window, true);
     }
 
     // Camera movement
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        camera.OnKeyPressed(ts, CameraMovement::FORWARD);
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        camera.OnKeyPressed(ts, CameraMovement::BACKWARD);
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        camera.OnKeyPressed(ts, CameraMovement::LEFT);
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        camera.OnKeyPressed(ts, CameraMovement::RIGHT);
+    if (glfwGetKey(m_Window, GLFW_KEY_W) == GLFW_PRESS)
+        m_Camera.OnKeyPressed(m_DeltaTime, CameraMovement::FORWARD);
+    if (glfwGetKey(m_Window, GLFW_KEY_S) == GLFW_PRESS)
+        m_Camera.OnKeyPressed(m_DeltaTime, CameraMovement::BACKWARD);
+    if (glfwGetKey(m_Window, GLFW_KEY_A) == GLFW_PRESS)
+        m_Camera.OnKeyPressed(m_DeltaTime, CameraMovement::LEFT);
+    if (glfwGetKey(m_Window, GLFW_KEY_D) == GLFW_PRESS)
+        m_Camera.OnKeyPressed(m_DeltaTime, CameraMovement::RIGHT);
+}
+
+void Application::RenderScene()
+{
+    // Rendering anything happens here
+    glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // Wireframe mode
+    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+    m_LitShader->Use();
+
+    m_LitShader->SetVector3f("u_ViewPosition", m_Camera.GetWorldPosition());
+
+    // Update the directional light uniforms
+    m_LitShader->SetUniform3f("u_DirectionalLight.direction", -0.2f, -1.0f, -0.3f); // Directional light pointing downwards
+    m_LitShader->SetUniform4f("u_DirectionalLight.ambient", 0.2f, 0.2f, 0.2f, 1.0f);
+    m_LitShader->SetUniform4f("u_DirectionalLight.diffuse", 0.8f, 0.8f, 0.8f, 1.0f);
+    m_LitShader->SetUniform4f("u_DirectionalLight.specular", 0.5f, 0.5f, 0.5f, 1.0f);
+
+    // Update the point light uniforms
+    const glm::vec3 pointLightAttenuationFactors{ 1.0f, 0.09f, 0.032f }; // Constant, linear and quadratic attenuation factors
+    for (unsigned int i = 0; i < m_PointLightPositions.size(); i++)
+    {
+        std::string pointLightName;
+        pointLightName.reserve(48); // Reserve space for the string to avoid reallocations
+        pointLightName = "u_PointLights[" + std::to_string(i) + "]";
+        m_LitShader->SetVector3f(pointLightName + ".position", { glm::sin(m_LastFrameTime) * m_PointLightPositions[i].x, m_PointLightPositions[i].y, glm::cos(m_LastFrameTime) * m_PointLightPositions[i].z });
+        m_LitShader->SetUniform4f(pointLightName + ".ambient", 0.05f, 0.05f, 0.05f, 1.0f); // Ambient light color
+        m_LitShader->SetUniform4f(pointLightName + ".diffuse", 0.8f, 0.8f, 0.8f, 1.0f); // Diffuse light color
+        m_LitShader->SetUniform4f(pointLightName + ".specular", 1.0f, 1.0f, 1.0f, 1.0f); // Specular light color
+
+        // We want the point light to cover a distance of 50 units, so we set the attenuation factors accordingly
+        m_LitShader->SetUniformFloat(pointLightName + ".constant", pointLightAttenuationFactors.x);
+        m_LitShader->SetUniformFloat(pointLightName + ".linear", pointLightAttenuationFactors.y);
+        m_LitShader->SetUniformFloat(pointLightName + ".quadratic", pointLightAttenuationFactors.z);
+    }
+
+    // Update the spot light uniforms
+    // The spot light is the camera itself, so we set its position to the camera's world position
+    m_LitShader->SetVector3f("u_SpotLight.position", m_Camera.GetWorldPosition()); // Position of the spot light
+    m_LitShader->SetVector3f("u_SpotLight.direction", m_Camera.GetForwardDirection()); // Direction of the spot light
+    m_LitShader->SetUniform4f("u_SpotLight.ambient", 0.0f, 0.0f, 0.0f, 1.0f); // Ambient light color
+    m_LitShader->SetUniform4f("u_SpotLight.diffuse", 1.0f, 1.0f, 1.0f, 1.0f); // Diffuse light color
+    m_LitShader->SetUniform4f("u_SpotLight.specular", 1.0f, 1.0f, 1.0f, 1.0f); // Specular light color
+    m_LitShader->SetUniformFloat("u_SpotLight.constant", pointLightAttenuationFactors.x);
+    m_LitShader->SetUniformFloat("u_SpotLight.linear", pointLightAttenuationFactors.y);
+    m_LitShader->SetUniformFloat("u_SpotLight.quadratic", pointLightAttenuationFactors.z);
+    m_LitShader->SetUniformFloat("u_SpotLight.cutOff", glm::cos(glm::radians(5.0f))); // Inner cut-off angle for the spot light
+    m_LitShader->SetUniformFloat("u_SpotLight.outerCutOff", glm::cos(glm::radians(17.5f))); // Outer cut-off angle for the spot light
+
+    // Set the model, view and projection matrix uniforms
+    glm::mat4 projection = glm::perspective(glm::radians(m_Camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
+    glm::mat4 view = m_Camera.GetViewMatrix();
+    glm::mat4 model = glm::mat4(1.0f);
+
+    m_LitShader->SetMatrix4f("u_Projection", projection); // Send the projection matrix to the shader
+    m_LitShader->SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
+    m_LitShader->SetMatrix4f("u_Model", model); // Set the model matrix for the shader
+
+    //m_BackpackModel->Draw(*m_LitShader); // Draw the backpack model with the lit shader
+
+    m_UnlitShader->Use();
+
+    glm::mat4 lightProjection = glm::perspective(glm::radians(m_Camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
+    glm::mat4 lightView = m_Camera.GetViewMatrix();
+    m_UnlitShader->SetMatrix4f("u_Projection", lightProjection); // Send the projection matrix to the shader
+    m_UnlitShader->SetMatrix4f("u_View", lightView); // Pass the camera view matrix to the shader
+
+    // Calculate the point lights model matrices and render them
+    for (unsigned int i = 0; i < m_PointLightPositions.size(); i++)
+    {
+        glm::mat4 lightModel = glm::mat4(1.0f);
+        lightModel = glm::translate(lightModel, { glm::sin(m_LastFrameTime) * m_PointLightPositions[i].x, m_PointLightPositions[i].y, glm::cos(m_LastFrameTime) * m_PointLightPositions[i].z });
+        lightModel = glm::scale(lightModel, glm::vec3(0.2f)); // Scale down the light source
+
+        m_UnlitShader->SetUniform4f("u_Color", 1.0f, 1.0f, 1.0f, 1.0f);
+        m_UnlitShader->SetMatrix4f("u_Model", lightModel);
+
+        // Render the light source model
+        m_LightSourceMesh->Draw(*m_UnlitShader);
+    }
 }
