@@ -50,6 +50,8 @@
     <None Include="resources\shaders\SpotLightFragment.glsl" />
     <None Include="resources\shaders\PointLightFragment.glsl" />
     <None Include="resources\shaders\DirectionalLightFragment.glsl" />
+    <None Include="resources\shaders\TextureFragment.glsl" />
+    <None Include="resources\shaders\TextureVertex.glsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Shader.h">

@@ -13,9 +13,15 @@
 const unsigned int SCREEN_WIDTH = 1600;
 const unsigned int SCREEN_HEIGHT = 900;
 
+void SetLightingUniforms(const Application& app);
+
 int main()
 {
-	Application* app = new Application(SCREEN_WIDTH, SCREEN_HEIGHT, Camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f));
+	auto* app = new Application(
+        SCREEN_WIDTH, 
+        SCREEN_HEIGHT, 
+        Camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f)
+    );
 
     app->Run();
 
@@ -120,6 +126,10 @@ Application::Application(int viewportWidth, int viewportHeight, const Camera& ca
 
 Application::~Application()
 {
+	// Cleanup OpenGL resources
+	glDeleteFramebuffers(1, &m_Framebuffer);
+	glDeleteRenderbuffers(1, &m_Renderbuffer);
+
     // Cleanup GLFW resources
     if (m_Window)
     {
@@ -131,52 +141,6 @@ Application::~Application()
 
 void Application::Initialize()
 {
-    glEnable(GL_DEPTH_TEST);
-
-    // Create framebuffer
-    unsigned int framebuffer;
-    glGenFramebuffers(1, &framebuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-
-    // Create a texture to render to
-    unsigned int textureColorBuffer;
-    glGenTextures(1, &textureColorBuffer);
-    glBindTexture(GL_TEXTURE_2D, textureColorBuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_ViewportWidth, m_ViewportHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    // Attach the texture to the framebuffer
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorBuffer, 0);
-
-    // Create a renderbuffer object for depth and stencil testing
-    unsigned int rboDepthStencil;
-    glGenRenderbuffers(1, &rboDepthStencil);
-    glBindRenderbuffer(GL_RENDERBUFFER, rboDepthStencil);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, m_ViewportWidth, m_ViewportHeight);
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
-
-    // Attach the renderbuffer to the framebuffer
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rboDepthStencil);
-
-    // Check if the framebuffer is complete
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-    {
-        std::cout << "[ERROR]: Framebuffer is not complete!" << std::endl;
-        return;
-    }
-
-    // Unbind the framebuffer to avoid accidental modifications
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    // Create shaders
-    m_LitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/LitFragment.glsl");
-    m_UnlitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/UnlitFragment.glsl");
-
-    // Create model
-    m_BackpackModel = std::make_shared<AssetLoader::Model>("resources/models/backpack/backpack.obj");
-
 	// Create light source mesh
     float cubeVertices[] =
     {   // positions            // normals              // texture coords
@@ -236,6 +200,18 @@ void Application::Initialize()
          5.0f, -0.5f, -5.0f,    0.0f, 1.0f, 0.0f,   2.0f, 2.0f
     };
 
+	// Screen quad vertices (in normalized device coordinates)
+    float quadVertices[] = {
+        // positions   // texCoords
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        -1.0f, -1.0f,  0.0f, 0.0f,
+         1.0f, -1.0f,  1.0f, 0.0f,
+
+        -1.0f,  1.0f,  0.0f, 1.0f,
+         1.0f, -1.0f,  1.0f, 0.0f,
+         1.0f,  1.0f,  1.0f, 1.0f
+    };
+
     m_PointLightPositions =
     {
         //glm::vec3(0.7f, 0.2f, 2.0f),
@@ -244,12 +220,69 @@ void Application::Initialize()
         //glm::vec3(0.0f, 0.0f, -3.0f)
     };
 
+    // Cubes positions
+    m_CubePositions =
+    {
+        glm::vec3(-1.0f, 0.0f, -1.0f),
+        glm::vec3(2.0f, 0.0f, 0.0f)
+    };
+
+    // Create shaders
+    m_LitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/LitFragment.glsl");
+    m_UnlitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/UnlitFragment.glsl");
+    m_ScreenShader = std::make_shared<Shader>("resources/shaders/TextureVertex.glsl", "resources/shaders/TextureFragment.glsl");
+
+	// Load textures
+    m_GroundTexture = std::make_shared<Texture>("resources/textures/wall.jpg");
+	m_CubeTexture = std::make_shared<Texture>("resources/textures/container2.png");
+
 	// Create meshes
+	m_PlaneMesh = std::make_shared<AssetLoader::Mesh>(planeVertices, sizeof(planeVertices) / sizeof(planeVertices[0]), 8);
+	m_CubeMesh = std::make_shared<AssetLoader::Mesh>(cubeVertices, sizeof(cubeVertices) / sizeof(cubeVertices[0]), 8);
     m_LightSourceMesh = std::make_shared<AssetLoader::Mesh>(cubeVertices, sizeof(cubeVertices) / sizeof(cubeVertices[0]), 8);
+
+    const int stride = 4 * sizeof(float);
+    int size = sizeof(quadVertices);
+    int count = size / stride;
+    m_ScreenQuadMesh = std::make_shared<AssetLoader::SimpleMesh>(quadVertices, size, count);
+	m_ScreenQuadMesh->SetVertexAttribute(0, 2, GL_FLOAT, false, stride, (void*)0); // Position attribute
+	m_ScreenQuadMesh->SetVertexAttribute(1, 2, GL_FLOAT, false, stride, (void*)(2 * sizeof(float))); // Texture coordinate attribute
 
     // Bind the lit shader first to set the material shininess which is not meant to change
     m_LitShader->Use();
 	m_LitShader->SetUniformFloat("u_Material.shininess", 32.0f);
+	m_LitShader->SetUniformInt("u_Material.texture_diffuse1", 0); // Set the diffuse texture uniform to use texture unit 0
+
+    m_ScreenShader->Use();
+    m_ScreenShader->SetUniformInt("u_Texture", 0); // Set the texture uniform to use texture unit 0
+
+    // Create framebuffer
+    glGenFramebuffers(1, &m_Framebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_Framebuffer);
+
+    // Create a texture to render to
+    m_ScreenTexture = std::make_shared<Texture>(m_ViewportWidth, m_ViewportHeight);
+
+    // Attach the texture to the framebuffer
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_ScreenTexture->GetID(), 0);
+
+    // Create a renderbuffer object for depth and stencil testing
+    glGenRenderbuffers(1, &m_Renderbuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, m_Renderbuffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, m_ViewportWidth, m_ViewportHeight);
+
+    // Attach the renderbuffer to the framebuffer
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, m_Renderbuffer);
+
+    // Check if the framebuffer is complete
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
+        std::cout << "[ERROR]: Framebuffer is not complete!" << std::endl;
+        return;
+    }
+
+    // Unbind the framebuffer to avoid accidental modifications
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void Application::Run()
@@ -293,15 +326,8 @@ void Application::ProcessInput()
         m_Camera.OnKeyPressed(m_DeltaTime, CameraMovement::RIGHT);
 }
 
-void Application::RenderScene()
+void Application::SetupLightUniforms()
 {
-    // Rendering anything happens here
-    glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    // Wireframe mode
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
     m_LitShader->Use();
 
     m_LitShader->SetVector3f("u_ViewPosition", m_Camera.GetWorldPosition());
@@ -342,6 +368,24 @@ void Application::RenderScene()
     m_LitShader->SetUniformFloat("u_SpotLight.quadratic", pointLightAttenuationFactors.z);
     m_LitShader->SetUniformFloat("u_SpotLight.cutOff", glm::cos(glm::radians(5.0f))); // Inner cut-off angle for the spot light
     m_LitShader->SetUniformFloat("u_SpotLight.outerCutOff", glm::cos(glm::radians(17.5f))); // Outer cut-off angle for the spot light
+}
+
+void Application::RenderScene()
+{
+	// First pass, we render the scene to the framebuffer
+	glBindFramebuffer(GL_FRAMEBUFFER, m_Framebuffer);
+	glEnable(GL_DEPTH_TEST); // Enable depth testing for 3D rendering
+
+    // Clear the framebuffer contents
+    glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // Wireframe mode
+    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+    SetupLightUniforms();
+
+    m_LitShader->Use();
 
     // Set the model, view and projection matrix uniforms
     glm::mat4 projection = glm::perspective(glm::radians(m_Camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
@@ -352,8 +396,27 @@ void Application::RenderScene()
     m_LitShader->SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
     m_LitShader->SetMatrix4f("u_Model", model); // Set the model matrix for the shader
 
-    //m_BackpackModel->Draw(*m_LitShader); // Draw the backpack model with the lit shader
+	// Render the plane
+    m_GroundTexture->Bind();
+    glm::mat4 planeModel = glm::mat4(1.0f);
+    m_LitShader->SetMatrix4f("u_Model", planeModel);
 
+	m_PlaneMesh->Draw(*m_LitShader);
+
+    // Render the cubes
+    m_CubeTexture->Bind();
+    for (auto cubePosition : m_CubePositions)
+    {
+        // Calculate the model matrix for each cube
+        glm::mat4 cubeModel = glm::mat4(1.0f);
+        cubeModel = glm::translate(cubeModel, cubePosition);
+        m_LitShader->SetMatrix4f("u_Model", cubeModel);
+
+        // Render cube
+		m_CubeMesh->Draw(*m_LitShader);
+    }
+
+	// Render the point light sources
     m_UnlitShader->Use();
 
     glm::mat4 lightProjection = glm::perspective(glm::radians(m_Camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
@@ -362,10 +425,10 @@ void Application::RenderScene()
     m_UnlitShader->SetMatrix4f("u_View", lightView); // Pass the camera view matrix to the shader
 
     // Calculate the point lights model matrices and render them
-    for (unsigned int i = 0; i < m_PointLightPositions.size(); i++)
+    for (auto & PointLightPosition : m_PointLightPositions)
     {
         glm::mat4 lightModel = glm::mat4(1.0f);
-        lightModel = glm::translate(lightModel, { glm::sin(m_LastFrameTime) * m_PointLightPositions[i].x, m_PointLightPositions[i].y, glm::cos(m_LastFrameTime) * m_PointLightPositions[i].z });
+        lightModel = glm::translate(lightModel, { glm::sin(m_LastFrameTime) * PointLightPosition.x, PointLightPosition.y, glm::cos(m_LastFrameTime) * PointLightPosition.z });
         lightModel = glm::scale(lightModel, glm::vec3(0.2f)); // Scale down the light source
 
         m_UnlitShader->SetUniform4f("u_Color", 1.0f, 1.0f, 1.0f, 1.0f);
@@ -374,4 +437,18 @@ void Application::RenderScene()
         // Render the light source model
         m_LightSourceMesh->Draw(*m_UnlitShader);
     }
+
+	// Second pass, we render the screen quad with the framebuffer texture
+    glBindFramebuffer(GL_FRAMEBUFFER, 0); // Bind the default framebuffer
+	glDisable(GL_DEPTH_TEST); // Disable depth testing for the screen quad in order to render it on top of everything else
+
+    // Clear the default framebuffer contents
+	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    m_ScreenShader->Use();
+    m_ScreenTexture->Bind(); // Bind the screen texture
+
+    // Render a full-screen quad
+	m_ScreenQuadMesh->Draw(); // Reuse the plane mesh to draw the full-screen quad
 }

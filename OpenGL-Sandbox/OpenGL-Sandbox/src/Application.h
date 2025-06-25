@@ -3,6 +3,7 @@
 #include "Camera.h"
 #include "Model.h"
 #include "Shader.h"
+#include "Texture.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -23,6 +24,8 @@ public:
 	void ProcessInput();
 	void RenderScene();
 private:
+	void SetupLightUniforms();
+private:
 	void FramebufferSizeCallback(int width, int height);
 	void MouseCallback(double xpos, double ypos);
 	void ScrollCallback(double xoffset, double yoffset);
@@ -41,13 +44,23 @@ private:
 	Camera m_Camera;
 
 	// Resources
+	unsigned int m_Framebuffer = 0;
+	unsigned int m_Renderbuffer = 0;
+
 	std::shared_ptr<Shader> m_LitShader;
 	std::shared_ptr<Shader> m_UnlitShader;
+	std::shared_ptr<Shader> m_ScreenShader;
 
-	std::shared_ptr<AssetLoader::Model> m_BackpackModel;
+	std::shared_ptr<Texture> m_GroundTexture;
+	std::shared_ptr<Texture> m_CubeTexture;
+	std::shared_ptr<Texture> m_ScreenTexture;
 
+	std::shared_ptr<AssetLoader::Mesh> m_CubeMesh;
+	std::shared_ptr<AssetLoader::Mesh> m_PlaneMesh;
 	std::shared_ptr<AssetLoader::Mesh> m_LightSourceMesh;
+	std::shared_ptr<AssetLoader::SimpleMesh> m_ScreenQuadMesh;
 
 	// Utilities
+	std::vector<glm::vec3> m_CubePositions;
 	std::vector<glm::vec3> m_PointLightPositions;
 };
