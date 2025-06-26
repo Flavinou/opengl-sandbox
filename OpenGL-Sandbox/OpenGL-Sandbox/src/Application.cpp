@@ -133,43 +133,6 @@ void Application::Initialize()
 {
     glEnable(GL_DEPTH_TEST);
 
-    // Create framebuffer
-    unsigned int framebuffer;
-    glGenFramebuffers(1, &framebuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-
-    // Create a texture to render to
-    unsigned int textureColorBuffer;
-    glGenTextures(1, &textureColorBuffer);
-    glBindTexture(GL_TEXTURE_2D, textureColorBuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_ViewportWidth, m_ViewportHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    // Attach the texture to the framebuffer
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorBuffer, 0);
-
-    // Create a renderbuffer object for depth and stencil testing
-    unsigned int rboDepthStencil;
-    glGenRenderbuffers(1, &rboDepthStencil);
-    glBindRenderbuffer(GL_RENDERBUFFER, rboDepthStencil);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, m_ViewportWidth, m_ViewportHeight);
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
-
-    // Attach the renderbuffer to the framebuffer
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rboDepthStencil);
-
-    // Check if the framebuffer is complete
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-    {
-        std::cout << "[ERROR]: Framebuffer is not complete!" << std::endl;
-        return;
-    }
-
-    // Unbind the framebuffer to avoid accidental modifications
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
     // Create shaders
     m_LitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/LitFragment.glsl");
     m_UnlitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/UnlitFragment.glsl");
@@ -352,7 +315,7 @@ void Application::RenderScene()
     m_LitShader->SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
     m_LitShader->SetMatrix4f("u_Model", model); // Set the model matrix for the shader
 
-    //m_BackpackModel->Draw(*m_LitShader); // Draw the backpack model with the lit shader
+    m_BackpackModel->Draw(*m_LitShader); // Draw the backpack model with the lit shader
 
     m_UnlitShader->Use();
 

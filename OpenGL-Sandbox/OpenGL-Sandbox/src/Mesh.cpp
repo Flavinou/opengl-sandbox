@@ -24,13 +24,20 @@ namespace AssetLoader
 		SetupMesh();
 	}
 
+	Mesh::~Mesh()
+	{
+        glDeleteVertexArrays(1, &m_VAO);
+        glDeleteBuffers(1, &m_VBO);
+        if (!m_Indices.empty())
+            glDeleteBuffers(1, &m_EBO);
+	}
+
     void Mesh::Draw(const Shader& shader) const
 	{
 		unsigned int diffuseNr = 1;
 		unsigned int specularNr = 1;
 		for (unsigned int i = 0; i < m_Textures.size(); i++)
 		{
-			//glActiveTexture(GL_TEXTURE0 + i); // Activate proper texture unit before binding
 			// Retrieve texture number (the "N" in diffuse_textureN)
 			std::string number;
 			std::string name = std::string(m_Textures[i].Type);
@@ -43,7 +50,6 @@ namespace AssetLoader
 
 			shader.SetUniformInt("u_Material." + name + number, i);
 			m_Textures[i].Texture->Bind(i);
-			//glBindTexture(GL_TEXTURE_2D, m_Textures[i].GetID());
 		}
 		glActiveTexture(GL_TEXTURE0); // Reset to default texture unit
 
@@ -92,5 +98,36 @@ namespace AssetLoader
 
 		glBindVertexArray(0); // Unbind VAO
 	}
+
+    SimpleMesh::SimpleMesh(const float* vertices, int size, int count)
+        : m_Count(count)
+    {
+        glGenVertexArrays(1, &m_VAO);
+        glGenBuffers(1, &m_VBO);
+
+        glBindVertexArray(m_VAO);
+        glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
+        glBufferData(GL_ARRAY_BUFFER, size, vertices, GL_STATIC_DRAW);
+    }
+
+    SimpleMesh::~SimpleMesh()
+    {
+        glDeleteVertexArrays(1, &m_VAO);
+        glDeleteBuffers(1, &m_VBO);
+    }
+
+    void SimpleMesh::SetVertexAttribute(unsigned int index, unsigned int size, unsigned int type, bool normalized, unsigned int stride, const void* pointer) const
+    {
+        glVertexAttribPointer(index, size, type, normalized ? GL_TRUE : GL_FALSE, stride, pointer);
+        glEnableVertexAttribArray(index);
+    }
+
+    void SimpleMesh::Draw() const
+    {
+        // Draw mesh
+        glBindVertexArray(m_VAO);
+        glDrawArrays(GL_TRIANGLES, 0, m_Count);
+        glBindVertexArray(0); // Unbind VAO
+    }
 }
 

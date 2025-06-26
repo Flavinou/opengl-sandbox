@@ -16,9 +16,7 @@ namespace AssetLoader
     {
         /*for (const auto& mesh : m_Meshes)
         {
-            glDeleteVertexArrays(1, &m_VAO);
-            glDeleteBuffers(1, &m_VBO);
-            glDeleteBuffers(1, &m_EBO);
+            delete mesh;
         }*/
     }
 
@@ -26,7 +24,7 @@ namespace AssetLoader
 	{
 		for (const auto& mesh : m_Meshes)
 		{
-			mesh.Draw(shader);
+			mesh->Draw(shader);
 		}
 	}
 
@@ -62,7 +60,7 @@ namespace AssetLoader
 		}
 	}
 
-	Mesh Model::ProcessMesh(aiMesh* mesh, const aiScene* scene)
+	std::shared_ptr<Mesh> Model::ProcessMesh(aiMesh* mesh, const aiScene* scene)
 	{
 		std::vector<Vertex> vertices;
 		vertices.reserve(mesh->mNumVertices);
@@ -128,7 +126,7 @@ namespace AssetLoader
 			textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
 		}
 
-		return { vertices, indices, textures };
+		return std::make_shared<Mesh>(vertices, indices, textures);
 	}
 
 	std::vector<MeshTexture> Model::LoadMaterialTextures(aiMaterial* mat, aiTextureType type, const std::string& typeName)

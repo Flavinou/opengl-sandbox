@@ -30,6 +30,7 @@ namespace AssetLoader
 		// Constructor
 		Mesh(const float* vertices, int verticesCount, int stride);
 		Mesh(const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices, const std::vector<MeshTexture>& textures);
+		~Mesh();
 
 		// Function to draw the mesh
 		void Draw(const Shader& shader) const;
@@ -43,4 +44,20 @@ namespace AssetLoader
 		std::vector<unsigned int> m_Indices;	// List of indices for indexed drawing
 		std::vector<MeshTexture> m_Textures;	// List of textures applied to the mesh
 	};
+
+    class SimpleMesh
+    {
+    public:
+        SimpleMesh(const float* vertices, int size, int count); // Default constructor for empty mesh
+        ~SimpleMesh();
+
+        void SetVertexAttribute(unsigned int index, unsigned int size, unsigned int type, bool normalized, unsigned int stride, const void* pointer) const;
+
+        void Draw() const;
+    private:
+        unsigned int m_VAO, m_VBO; // Vertex Array Object and Vertex Buffer Object IDs
+
+        std::vector<float> m_Vertices;
+        int m_Count; // Number of vertices, size in bytes
+    };
 }
