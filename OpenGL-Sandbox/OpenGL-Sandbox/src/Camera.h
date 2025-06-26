@@ -18,9 +18,12 @@ public:
 
     const glm::vec3& GetWorldPosition() const { return m_Position; }
 	const glm::vec3& GetForwardDirection() const { return m_Forward; }
+
     const float GetFOV() const { return m_FOV; }
     const float GetYaw() const { return m_Yaw; }
     const float GetPitch() const { return m_Pitch; }
+
+    void SetYaw(float value) { m_Yaw = value; UpdateProjection(); }
 
     const glm::mat4 GetViewMatrix() const { return glm::lookAt(m_Position, m_Position + m_Forward, m_Up); }
 

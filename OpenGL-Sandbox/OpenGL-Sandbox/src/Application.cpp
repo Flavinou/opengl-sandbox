@@ -203,13 +203,22 @@ void Application::Initialize()
 	// Screen quad vertices (in normalized device coordinates)
     float quadVertices[] = {
         // positions   // texCoords
-        -1.0f,  1.0f,  0.0f, 1.0f,
-        -1.0f, -1.0f,  0.0f, 0.0f,
-         1.0f, -1.0f,  1.0f, 0.0f,
+        //-1.0f,  1.0f,  0.0f, 1.0f,
+        //-1.0f, -1.0f,  0.0f, 0.0f,
+        // 1.0f, -1.0f,  1.0f, 0.0f,
+        //
+        //-1.0f,  1.0f,  0.0f, 1.0f,
+        // 1.0f, -1.0f,  1.0f, 0.0f,
+        // 1.0f,  1.0f,  1.0f, 1.0f
+        
+        // positions    // texCoords
+        -0.25f,  1.0f,    0.0f, 1.0f,
+        -0.25f,  0.75f,   0.0f, 0.0f,
+         0.25f,  0.75f,   1.0f, 0.0f,
 
-        -1.0f,  1.0f,  0.0f, 1.0f,
-         1.0f, -1.0f,  1.0f, 0.0f,
-         1.0f,  1.0f,  1.0f, 1.0f
+        -0.25f,  1.0f,    0.0f, 1.0f,
+         0.25f,  0.75f,   1.0f, 0.0f,
+         0.25f,  1.0f,    1.0f, 1.0f
     };
 
     m_PointLightPositions =
@@ -372,7 +381,9 @@ void Application::SetupLightUniforms()
 
 void Application::RenderScene()
 {
-	// First pass, we render the scene to the framebuffer
+	// First pass, we render the scene with the camera rotated 180° along the y-axis to the framebuffer
+    // The whole scene will be rendered "mirrored" to a texture that's 1/10th of the whole screen aspect ratio
+
 	glBindFramebuffer(GL_FRAMEBUFFER, m_Framebuffer);
 	glEnable(GL_DEPTH_TEST); // Enable depth testing for 3D rendering
 
@@ -388,8 +399,10 @@ void Application::RenderScene()
     m_LitShader->Use();
 
     // Set the model, view and projection matrix uniforms
-    glm::mat4 projection = glm::perspective(glm::radians(m_Camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
+    glm::mat4 projection = glm::perspective(glm::radians(m_Camera.GetFOV()), (float)m_ViewportWidth / (float)m_ViewportHeight, 0.1f, 100.0f);
+    m_Camera.SetYaw(m_Camera.GetYaw() + 180.0f); // Rotate the camera 180 degrees around
     glm::mat4 view = m_Camera.GetViewMatrix();
+    m_Camera.SetYaw(m_Camera.GetYaw() - 180.0f); // Reset camera orientation for next pass
     glm::mat4 model = glm::mat4(1.0f);
 
     m_LitShader->SetMatrix4f("u_Projection", projection); // Send the projection matrix to the shader
@@ -419,7 +432,7 @@ void Application::RenderScene()
 	// Render the point light sources
     m_UnlitShader->Use();
 
-    glm::mat4 lightProjection = glm::perspective(glm::radians(m_Camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
+    glm::mat4 lightProjection = glm::perspective(glm::radians(m_Camera.GetFOV()), (float)m_ViewportWidth / (float)m_ViewportHeight, 0.1f, 100.0f);
     glm::mat4 lightView = m_Camera.GetViewMatrix();
     m_UnlitShader->SetMatrix4f("u_Projection", lightProjection); // Send the projection matrix to the shader
     m_UnlitShader->SetMatrix4f("u_View", lightView); // Pass the camera view matrix to the shader
@@ -438,17 +451,85 @@ void Application::RenderScene()
         m_LightSourceMesh->Draw(*m_UnlitShader);
     }
 
-	// Second pass, we render the screen quad with the framebuffer texture
-    glBindFramebuffer(GL_FRAMEBUFFER, 0); // Bind the default framebuffer
-	glDisable(GL_DEPTH_TEST); // Disable depth testing for the screen quad in order to render it on top of everything else
+    // Second pass, we render the scene normally to the default framebuffer
 
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glEnable(GL_DEPTH_TEST); // Enable depth testing for 3D rendering
+
+    // Clear the framebuffer contents
+    glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // Wireframe mode
+    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+    SetupLightUniforms();
+
+    m_LitShader->Use();
+
+    // Set the model, view and projection matrix uniforms
+    projection = glm::perspective(glm::radians(m_Camera.GetFOV()), (float)m_ViewportWidth / (float)m_ViewportHeight, 0.1f, 100.0f);
+    view = m_Camera.GetViewMatrix();
+    model = glm::mat4(1.0f);
+
+    m_LitShader->SetMatrix4f("u_Projection", projection); // Send the projection matrix to the shader
+    m_LitShader->SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
+    m_LitShader->SetMatrix4f("u_Model", model); // Set the model matrix for the shader
+
+    // Render the plane
+    m_GroundTexture->Bind();
+    planeModel = glm::mat4(1.0f);
+    m_LitShader->SetMatrix4f("u_Model", planeModel);
+
+    m_PlaneMesh->Draw(*m_LitShader);
+
+    // Render the cubes
+    m_CubeTexture->Bind();
+    for (auto cubePosition : m_CubePositions)
+    {
+        // Calculate the model matrix for each cube
+        glm::mat4 cubeModel = glm::mat4(1.0f);
+        cubeModel = glm::translate(cubeModel, cubePosition);
+        m_LitShader->SetMatrix4f("u_Model", cubeModel);
+
+        // Render cube
+        m_CubeMesh->Draw(*m_LitShader);
+    }
+
+    // Render the point light sources
+    m_UnlitShader->Use();
+
+    lightProjection = glm::perspective(glm::radians(m_Camera.GetFOV()), (float)m_ViewportWidth / (float)m_ViewportHeight, 0.1f, 100.0f);
+    lightView = m_Camera.GetViewMatrix();
+    m_UnlitShader->SetMatrix4f("u_Projection", lightProjection); // Send the projection matrix to the shader
+    m_UnlitShader->SetMatrix4f("u_View", lightView); // Pass the camera view matrix to the shader
+
+    // Calculate the point lights model matrices and render them
+    for (auto& PointLightPosition : m_PointLightPositions)
+    {
+        glm::mat4 lightModel = glm::mat4(1.0f);
+        lightModel = glm::translate(lightModel, { glm::sin(m_LastFrameTime) * PointLightPosition.x, PointLightPosition.y, glm::cos(m_LastFrameTime) * PointLightPosition.z });
+        lightModel = glm::scale(lightModel, glm::vec3(0.2f)); // Scale down the light source
+
+        m_UnlitShader->SetUniform4f("u_Color", 1.0f, 1.0f, 1.0f, 1.0f);
+        m_UnlitShader->SetMatrix4f("u_Model", lightModel);
+
+        // Render the light source model
+        m_LightSourceMesh->Draw(*m_UnlitShader);
+    }
+
+	// Last pass, we combine the main scene with the framebuffer texture at the top
+
+    //glBindFramebuffer(GL_FRAMEBUFFER, 0); // Bind the default framebuffer
+    glDisable(GL_DEPTH_TEST); // Disable depth testing for the screen quad in order to render it on top of everything else
+    
     // Clear the default framebuffer contents
-	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-
+    //glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    //glClear(GL_COLOR_BUFFER_BIT);
+    
     m_ScreenShader->Use();
     m_ScreenTexture->Bind(); // Bind the screen texture
-
+    
     // Render a full-screen quad
-	m_ScreenQuadMesh->Draw(); // Reuse the plane mesh to draw the full-screen quad
+    m_ScreenQuadMesh->Draw(); // Reuse the plane mesh to draw the full-screen quad
 }
