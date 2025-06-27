@@ -14,12 +14,10 @@ namespace AssetLoader
 
     Model::~Model()
     {
-        /*for (const auto& mesh : m_Meshes)
+        for (auto& mesh : m_Meshes)
         {
-            glDeleteVertexArrays(1, &m_VAO);
-            glDeleteBuffers(1, &m_VBO);
-            glDeleteBuffers(1, &m_EBO);
-        }*/
+			mesh.Release();
+        }
     }
 
     void Model::Draw(const Shader& shader) const

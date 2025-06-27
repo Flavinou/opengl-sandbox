@@ -30,7 +30,8 @@ namespace AssetLoader
 		// Constructor
 		Mesh(const float* vertices, int verticesCount, int stride);
 		Mesh(const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices, const std::vector<MeshTexture>& textures);
-		~Mesh();
+
+		void Release();
 
 		// Function to draw the mesh
 		void Draw(const Shader& shader) const;

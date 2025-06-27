@@ -24,13 +24,14 @@ namespace AssetLoader
 		SetupMesh();
 	}
 
-    Mesh::~Mesh()
-    {
-        glDeleteVertexArrays(1, &m_VAO);
-        glDeleteBuffers(1, &m_VBO);
-        if (!m_Indices.empty())
-            glDeleteBuffers(1, &m_EBO);
-    }
+	void Mesh::Release()
+	{
+		glDeleteVertexArrays(1, &m_VAO);
+		glDeleteBuffers(1, &m_VBO);
+
+		if (!m_Indices.empty())
+			glDeleteBuffers(1, &m_EBO);
+	}
 
     void Mesh::Draw(const Shader& shader) const
 	{

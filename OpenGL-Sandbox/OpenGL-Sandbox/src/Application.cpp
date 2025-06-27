@@ -24,6 +24,50 @@ int main()
     return 0;
 }
 
+void Application::SetupLightUniforms()
+{
+    m_LitShader->Use();
+
+    m_LitShader->SetVector3f("u_ViewPosition", m_Camera.GetWorldPosition());
+
+    // Update the directional light uniforms
+    m_LitShader->SetUniform3f("u_DirectionalLight.direction", -0.2f, -1.0f, -0.3f); // Directional light pointing downwards
+    m_LitShader->SetUniform4f("u_DirectionalLight.ambient", 0.2f, 0.2f, 0.2f, 1.0f);
+    m_LitShader->SetUniform4f("u_DirectionalLight.diffuse", 0.8f, 0.8f, 0.8f, 1.0f);
+    m_LitShader->SetUniform4f("u_DirectionalLight.specular", 0.5f, 0.5f, 0.5f, 1.0f);
+
+    // Update the point light uniforms
+    const glm::vec3 pointLightAttenuationFactors{ 1.0f, 0.09f, 0.032f }; // Constant, linear and quadratic attenuation factors
+    for (unsigned int i = 0; i < m_PointLightPositions.size(); i++)
+    {
+        std::string pointLightName;
+        pointLightName.reserve(48); // Reserve space for the string to avoid reallocations
+        pointLightName = "u_PointLights[" + std::to_string(i) + "]";
+        m_LitShader->SetVector3f(pointLightName + ".position", { glm::sin(m_LastFrameTime) * m_PointLightPositions[i].x, m_PointLightPositions[i].y, glm::cos(m_LastFrameTime) * m_PointLightPositions[i].z });
+        m_LitShader->SetUniform4f(pointLightName + ".ambient", 0.05f, 0.05f, 0.05f, 1.0f); // Ambient light color
+        m_LitShader->SetUniform4f(pointLightName + ".diffuse", 0.8f, 0.8f, 0.8f, 1.0f); // Diffuse light color
+        m_LitShader->SetUniform4f(pointLightName + ".specular", 1.0f, 1.0f, 1.0f, 1.0f); // Specular light color
+
+        // We want the point light to cover a distance of 50 units, so we set the attenuation factors accordingly
+        m_LitShader->SetUniformFloat(pointLightName + ".constant", pointLightAttenuationFactors.x);
+        m_LitShader->SetUniformFloat(pointLightName + ".linear", pointLightAttenuationFactors.y);
+        m_LitShader->SetUniformFloat(pointLightName + ".quadratic", pointLightAttenuationFactors.z);
+    }
+
+    // Update the spot light uniforms
+    // The spot light is the camera itself, so we set its position to the camera's world position
+    m_LitShader->SetVector3f("u_SpotLight.position", m_Camera.GetWorldPosition()); // Position of the spot light
+    m_LitShader->SetVector3f("u_SpotLight.direction", m_Camera.GetForwardDirection()); // Direction of the spot light
+    m_LitShader->SetUniform4f("u_SpotLight.ambient", 0.0f, 0.0f, 0.0f, 1.0f); // Ambient light color
+    m_LitShader->SetUniform4f("u_SpotLight.diffuse", 1.0f, 1.0f, 1.0f, 1.0f); // Diffuse light color
+    m_LitShader->SetUniform4f("u_SpotLight.specular", 1.0f, 1.0f, 1.0f, 1.0f); // Specular light color
+    m_LitShader->SetUniformFloat("u_SpotLight.constant", pointLightAttenuationFactors.x);
+    m_LitShader->SetUniformFloat("u_SpotLight.linear", pointLightAttenuationFactors.y);
+    m_LitShader->SetUniformFloat("u_SpotLight.quadratic", pointLightAttenuationFactors.z);
+    m_LitShader->SetUniformFloat("u_SpotLight.cutOff", glm::cos(glm::radians(5.0f))); // Inner cut-off angle for the spot light
+    m_LitShader->SetUniformFloat("u_SpotLight.outerCutOff", glm::cos(glm::radians(17.5f))); // Outer cut-off angle for the spot light
+}
+
 void Application::FramebufferSizeCallback(int width, int height)
 {
     glViewport(0, 0, width, height);
@@ -133,49 +177,26 @@ void Application::Initialize()
 {
     glEnable(GL_DEPTH_TEST);
 
-    // Create framebuffer
-    unsigned int framebuffer;
-    glGenFramebuffers(1, &framebuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-
-    // Create a texture to render to
-    unsigned int textureColorBuffer;
-    glGenTextures(1, &textureColorBuffer);
-    glBindTexture(GL_TEXTURE_2D, textureColorBuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_ViewportWidth, m_ViewportHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    // Attach the texture to the framebuffer
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorBuffer, 0);
-
-    // Create a renderbuffer object for depth and stencil testing
-    unsigned int rboDepthStencil;
-    glGenRenderbuffers(1, &rboDepthStencil);
-    glBindRenderbuffer(GL_RENDERBUFFER, rboDepthStencil);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, m_ViewportWidth, m_ViewportHeight);
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
-
-    // Attach the renderbuffer to the framebuffer
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rboDepthStencil);
-
-    // Check if the framebuffer is complete
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-    {
-        std::cout << "[ERROR]: Framebuffer is not complete!" << std::endl;
-        return;
-    }
-
-    // Unbind the framebuffer to avoid accidental modifications
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
     // Create shaders
-    m_LitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/LitFragment.glsl");
+    m_LitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/SkyboxLitFragment.glsl");
     m_UnlitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/UnlitFragment.glsl");
+    m_CubemapShader = std::make_shared<Shader>("resources/shaders/CubemapVertex.glsl", "resources/shaders/CubemapFragment.glsl");
 
     // Create model
     m_BackpackModel = std::make_shared<AssetLoader::Model>("resources/models/backpack/backpack.obj");
+
+    // Cubemap faces locations
+    m_TextureFaces = {
+        "resources/textures/skybox/right.jpg",
+        "resources/textures/skybox/left.jpg",
+        "resources/textures/skybox/top.jpg",
+        "resources/textures/skybox/bottom.jpg",
+        "resources/textures/skybox/front.jpg",
+        "resources/textures/skybox/back.jpg",
+    };
+
+    // Create cubemap
+    m_CubemapTexture = std::make_shared<Cubemap>(m_TextureFaces.data());
 
 	// Create light source mesh
     float cubeVertices[] =
@@ -236,6 +257,53 @@ void Application::Initialize()
          5.0f, -0.5f, -5.0f,    0.0f, 1.0f, 0.0f,   2.0f, 2.0f
     };
 
+    // Cubemap vertices
+    float skyboxVertices[] =
+    {
+        // positions            // normals
+        -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,
+         0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,
+         0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,
+         0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,
+        -0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,
+        -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,
+
+        -0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,
+
+        -0.5f,  0.5f,  0.5f,    -1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f,    -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,    -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,    -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f,  0.5f,    -1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f,    -1.0f,  0.0f,  0.0f,
+
+         0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,
+         0.5f,  0.5f, -0.5f,     1.0f,  0.0f,  0.0f,
+         0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,
+         0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,
+         0.5f, -0.5f,  0.5f,     1.0f,  0.0f,  0.0f,
+         0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,
+
+        -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,
+         0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,
+         0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,
+         0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,
+        -0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,
+
+        -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,
+         0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,
+         0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,
+         0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f
+    };
+
     m_PointLightPositions =
     {
         //glm::vec3(0.7f, 0.2f, 2.0f),
@@ -245,11 +313,29 @@ void Application::Initialize()
     };
 
 	// Create meshes
+    const int cubeStride = 8 * sizeof(float);
+    int cubeSize = sizeof(cubeVertices);
+    int cubeVerticesCount = cubeSize / cubeStride;
+    m_CubeMesh = std::make_shared<AssetLoader::SimpleMesh>(cubeVertices, sizeof(cubeVertices), cubeVerticesCount);
+    m_CubeMesh->SetVertexAttribute(0, 3, GL_FLOAT, false, cubeStride, nullptr);
+    m_CubeMesh->SetVertexAttribute(1, 3, GL_FLOAT, false, cubeStride, (void*)(3 * sizeof(float)));
+    m_CubeMesh->SetVertexAttribute(2, 2, GL_FLOAT, false, cubeStride, (void*)(6 * sizeof(float)));
+
     m_LightSourceMesh = std::make_shared<AssetLoader::Mesh>(cubeVertices, sizeof(cubeVertices) / sizeof(cubeVertices[0]), 8);
+
+    const int stride = 6 * sizeof(float);
+    int size = sizeof(skyboxVertices);
+    int count = size / stride;
+    m_CubemapMesh = std::make_shared<AssetLoader::SimpleMesh>(skyboxVertices, size, count);
+    m_CubemapMesh->SetVertexAttribute(0, 3, GL_FLOAT, false, stride, nullptr);
+    m_CubemapMesh->SetVertexAttribute(1, 3, GL_FLOAT, false, stride, (void*)(3 * sizeof(float)));
 
     // Bind the lit shader first to set the material shininess which is not meant to change
     m_LitShader->Use();
 	m_LitShader->SetUniformFloat("u_Material.shininess", 32.0f);
+
+    m_CubemapShader->Use();
+    m_CubemapShader->SetUniformFloat("u_Cubemap", 0);
 }
 
 void Application::Run()
@@ -302,46 +388,10 @@ void Application::RenderScene()
     // Wireframe mode
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
+    // Scene rendering pass
+    SetupLightUniforms();
+
     m_LitShader->Use();
-
-    m_LitShader->SetVector3f("u_ViewPosition", m_Camera.GetWorldPosition());
-
-    // Update the directional light uniforms
-    m_LitShader->SetUniform3f("u_DirectionalLight.direction", -0.2f, -1.0f, -0.3f); // Directional light pointing downwards
-    m_LitShader->SetUniform4f("u_DirectionalLight.ambient", 0.2f, 0.2f, 0.2f, 1.0f);
-    m_LitShader->SetUniform4f("u_DirectionalLight.diffuse", 0.8f, 0.8f, 0.8f, 1.0f);
-    m_LitShader->SetUniform4f("u_DirectionalLight.specular", 0.5f, 0.5f, 0.5f, 1.0f);
-
-    // Update the point light uniforms
-    const glm::vec3 pointLightAttenuationFactors{ 1.0f, 0.09f, 0.032f }; // Constant, linear and quadratic attenuation factors
-    for (unsigned int i = 0; i < m_PointLightPositions.size(); i++)
-    {
-        std::string pointLightName;
-        pointLightName.reserve(48); // Reserve space for the string to avoid reallocations
-        pointLightName = "u_PointLights[" + std::to_string(i) + "]";
-        m_LitShader->SetVector3f(pointLightName + ".position", { glm::sin(m_LastFrameTime) * m_PointLightPositions[i].x, m_PointLightPositions[i].y, glm::cos(m_LastFrameTime) * m_PointLightPositions[i].z });
-        m_LitShader->SetUniform4f(pointLightName + ".ambient", 0.05f, 0.05f, 0.05f, 1.0f); // Ambient light color
-        m_LitShader->SetUniform4f(pointLightName + ".diffuse", 0.8f, 0.8f, 0.8f, 1.0f); // Diffuse light color
-        m_LitShader->SetUniform4f(pointLightName + ".specular", 1.0f, 1.0f, 1.0f, 1.0f); // Specular light color
-
-        // We want the point light to cover a distance of 50 units, so we set the attenuation factors accordingly
-        m_LitShader->SetUniformFloat(pointLightName + ".constant", pointLightAttenuationFactors.x);
-        m_LitShader->SetUniformFloat(pointLightName + ".linear", pointLightAttenuationFactors.y);
-        m_LitShader->SetUniformFloat(pointLightName + ".quadratic", pointLightAttenuationFactors.z);
-    }
-
-    // Update the spot light uniforms
-    // The spot light is the camera itself, so we set its position to the camera's world position
-    m_LitShader->SetVector3f("u_SpotLight.position", m_Camera.GetWorldPosition()); // Position of the spot light
-    m_LitShader->SetVector3f("u_SpotLight.direction", m_Camera.GetForwardDirection()); // Direction of the spot light
-    m_LitShader->SetUniform4f("u_SpotLight.ambient", 0.0f, 0.0f, 0.0f, 1.0f); // Ambient light color
-    m_LitShader->SetUniform4f("u_SpotLight.diffuse", 1.0f, 1.0f, 1.0f, 1.0f); // Diffuse light color
-    m_LitShader->SetUniform4f("u_SpotLight.specular", 1.0f, 1.0f, 1.0f, 1.0f); // Specular light color
-    m_LitShader->SetUniformFloat("u_SpotLight.constant", pointLightAttenuationFactors.x);
-    m_LitShader->SetUniformFloat("u_SpotLight.linear", pointLightAttenuationFactors.y);
-    m_LitShader->SetUniformFloat("u_SpotLight.quadratic", pointLightAttenuationFactors.z);
-    m_LitShader->SetUniformFloat("u_SpotLight.cutOff", glm::cos(glm::radians(5.0f))); // Inner cut-off angle for the spot light
-    m_LitShader->SetUniformFloat("u_SpotLight.outerCutOff", glm::cos(glm::radians(17.5f))); // Outer cut-off angle for the spot light
 
     // Set the model, view and projection matrix uniforms
     glm::mat4 projection = glm::perspective(glm::radians(m_Camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
@@ -353,6 +403,17 @@ void Application::RenderScene()
     m_LitShader->SetMatrix4f("u_Model", model); // Set the model matrix for the shader
 
     //m_BackpackModel->Draw(*m_LitShader); // Draw the backpack model with the lit shader
+
+    m_LitShader->SetUniformFloat("u_Material.texture_diffuse1", 0);
+    m_LitShader->SetUniformFloat("u_Material.cubemap1", 1);
+
+    m_CubeMesh->Draw();
+
+    model = glm::translate(model, glm::vec3(-4.0f, 0.0f, 0.0f));
+
+    m_LitShader->SetMatrix4f("u_Model", model);
+
+    m_BackpackModel->Draw(*m_LitShader);
 
     m_UnlitShader->Use();
 
@@ -374,4 +435,17 @@ void Application::RenderScene()
         // Render the light source model
         m_LightSourceMesh->Draw(*m_UnlitShader);
     }
+
+    // Skybox pass - make sure to render last !
+    glDepthFunc(GL_LEQUAL); // Disable writing to the depth buffer, why care about that ?
+    m_CubemapShader->Use();
+
+    // Set the view and projection matrix uniforms
+    glm::mat4 skyboxProjection = glm::perspective(glm::radians(m_Camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
+    glm::mat4 skyboxView = m_Camera.GetViewMatrix();
+    skyboxView = glm::mat4(glm::mat3(skyboxView));
+    m_CubemapShader->SetMatrix4f("u_Projection", skyboxProjection);
+    m_CubemapShader->SetMatrix4f("u_View", skyboxView);
+    m_CubemapMesh->Draw();
+    glDepthFunc(GL_LESS);
 }
