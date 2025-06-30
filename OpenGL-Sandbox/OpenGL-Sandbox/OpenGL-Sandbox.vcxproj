@@ -163,8 +163,14 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\DirectionalLightFragment.glsl" />
+    <None Include="resources\shaders\ExplodeGeometry.glsl" />
     <None Include="resources\shaders\LitFragment.glsl" />
+    <None Include="resources\shaders\NormalDisplayGeometry.glsl" />
+    <None Include="resources\shaders\NormalDisplayVertex.glsl" />
     <None Include="resources\shaders\PointLightFragment.glsl" />
+    <None Include="resources\shaders\PointsFragment.glsl" />
+    <None Include="resources\shaders\PointsGeometry.glsl" />
+    <None Include="resources\shaders\PointsVertex.glsl" />
     <None Include="resources\shaders\SpotLightFragment.glsl" />
     <None Include="resources\shaders\UnlitFragment.glsl" />
     <None Include="resources\shaders\Vertex.glsl" />

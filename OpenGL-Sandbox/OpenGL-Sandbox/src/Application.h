@@ -45,6 +45,8 @@ private:
 	// Resources
 	std::shared_ptr<Shader> m_LitShader;
 	std::shared_ptr<Shader> m_UnlitShader;
+	std::shared_ptr<Shader> m_PointsShader;
+	std::shared_ptr<Shader> m_NormalsDisplayShader;
 
 	std::shared_ptr<AssetLoader::Model> m_BackpackModel;
 
@@ -52,4 +54,7 @@ private:
 
 	// Utilities
 	std::vector<glm::vec3> m_PointLightPositions;
+
+	// Geometry shader
+	unsigned int m_PointsVAO, m_PointsVBO;
 };

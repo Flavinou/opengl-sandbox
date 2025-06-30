@@ -15,7 +15,11 @@ const unsigned int SCREEN_HEIGHT = 900;
 
 int main()
 {
-	Application* app = new Application(SCREEN_WIDTH, SCREEN_HEIGHT, Camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f));
+	Application* app = new Application(
+        SCREEN_WIDTH,
+        SCREEN_HEIGHT,
+        Camera(glm::vec3(-2.5f, 2.5f, 5.0f), glm::vec3(0.0f, 1.0f, 0.0f), -65.0f, -25.0f)
+    );
 
     app->Run();
 
@@ -53,7 +57,7 @@ void Application::ScrollCallback(double xOffset, double yOffset)
 }
 
 Application::Application(int viewportWidth, int viewportHeight, const Camera& camera)
-	: m_ViewportWidth(viewportWidth), m_ViewportHeight(viewportHeight), m_Camera(camera)
+	: m_ViewportWidth(viewportWidth), m_ViewportHeight(viewportHeight), m_Camera(camera), m_PointsVAO(0), m_PointsVBO(0)
 {
 	// GLFW initialization and window creation are handled in the application creation
     glfwInit();
@@ -134,8 +138,10 @@ void Application::Initialize()
     glEnable(GL_DEPTH_TEST);
 
     // Create shaders
-    m_LitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/LitFragment.glsl");
+    m_LitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/LitFragment.glsl"/*, "resources/shaders/ExplodeGeometry.glsl"*/);
     m_UnlitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/UnlitFragment.glsl");
+	m_PointsShader = std::make_shared<Shader>("resources/shaders/PointsVertex.glsl", "resources/shaders/PointsFragment.glsl", "resources/shaders/PointsGeometry.glsl");
+	m_NormalsDisplayShader = std::make_shared<Shader>("resources/shaders/NormalDisplayVertex.glsl", "resources/shaders/UnlitFragment.glsl", "resources/shaders/NormalDisplayGeometry.glsl");
 
     // Create model
     m_BackpackModel = std::make_shared<AssetLoader::Model>("resources/models/backpack/backpack.obj");
@@ -207,12 +213,43 @@ void Application::Initialize()
         //glm::vec3(0.0f, 0.0f, -3.0f)
     };
 
+    float points[] =
+    {
+        // positions     // colors
+        -0.5f,  0.5f,    1.0f, 0.0f, 0.0f, // Top left
+		 0.5f,  0.5f,    0.0f, 1.0f, 0.0f, // Top right
+		 0.5f, -0.5f,    0.0f, 0.0f, 1.0f, // Bottom right
+		-0.5f, -0.5f,    1.0f, 1.0f, 0.0f // Bottom left
+    };
+
+    glGenVertexArrays(1, &m_PointsVAO);
+    glGenBuffers(1, &m_PointsVBO);
+
+    glBindVertexArray(m_PointsVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_PointsVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(points), points, GL_STATIC_DRAW);
+
+    // Vertex Positions
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+
+	// Vertex Colors
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(2 * sizeof(float)));
+
+    // Unbind the VBO and VAO
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+
 	// Create meshes
     m_LightSourceMesh = std::make_shared<AssetLoader::Mesh>(cubeVertices, sizeof(cubeVertices) / sizeof(cubeVertices[0]), 8);
 
     // Bind the lit shader first to set the material shininess which is not meant to change
     m_LitShader->Use();
 	m_LitShader->SetUniformFloat("u_Material.shininess", 32.0f);
+
+    m_NormalsDisplayShader->Use();
+	m_NormalsDisplayShader->SetUniform4f("u_Color", 0.0f, 1.0f, 0.0f, 1.0f); // Set the color for normal display
 }
 
 void Application::Run()
@@ -265,8 +302,15 @@ void Application::RenderScene()
     // Wireframe mode
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
+	//m_PointsShader->Use();
+	//glBindVertexArray(m_PointsVAO);
+	//glDrawArrays(GL_POINTS, 0, 4); // Draw the points
+
+	// First pass, render the scene normally with the lit shader
+
     m_LitShader->Use();
 
+	m_LitShader->SetUniformFloat("u_Time", m_LastFrameTime); // Pass the time to the shader
     m_LitShader->SetVector3f("u_ViewPosition", m_Camera.GetWorldPosition());
 
     SetLightingUniforms(*m_LitShader);
@@ -299,6 +343,15 @@ void Application::RenderScene()
         // Render the light source model
         m_LightSourceMesh->Draw(*m_UnlitShader);
     }
+
+	// Second pass, render the normals of the backpack model
+    m_NormalsDisplayShader->Use();
+    m_NormalsDisplayShader->SetMatrix4f("u_Projection", projection); // Send the projection matrix to the shader
+    m_NormalsDisplayShader->SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
+    m_NormalsDisplayShader->SetMatrix4f("u_Model", model); // Set the model matrix for the shader
+
+    // Draw the normals of the backpack model
+	m_BackpackModel->Draw(*m_NormalsDisplayShader);
 }
 
 void Application::SetLightingUniforms(const Shader& shader)
