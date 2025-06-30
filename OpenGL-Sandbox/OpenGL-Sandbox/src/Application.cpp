@@ -269,45 +269,10 @@ void Application::RenderScene()
 
     m_LitShader->SetVector3f("u_ViewPosition", m_Camera.GetWorldPosition());
 
-    // Update the directional light uniforms
-    m_LitShader->SetUniform3f("u_DirectionalLight.direction", -0.2f, -1.0f, -0.3f); // Directional light pointing downwards
-    m_LitShader->SetUniform4f("u_DirectionalLight.ambient", 0.2f, 0.2f, 0.2f, 1.0f);
-    m_LitShader->SetUniform4f("u_DirectionalLight.diffuse", 0.8f, 0.8f, 0.8f, 1.0f);
-    m_LitShader->SetUniform4f("u_DirectionalLight.specular", 0.5f, 0.5f, 0.5f, 1.0f);
-
-    // Update the point light uniforms
-    const glm::vec3 pointLightAttenuationFactors{ 1.0f, 0.09f, 0.032f }; // Constant, linear and quadratic attenuation factors
-    for (unsigned int i = 0; i < m_PointLightPositions.size(); i++)
-    {
-        std::string pointLightName;
-        pointLightName.reserve(48); // Reserve space for the string to avoid reallocations
-        pointLightName = "u_PointLights[" + std::to_string(i) + "]";
-        m_LitShader->SetVector3f(pointLightName + ".position", { glm::sin(m_LastFrameTime) * m_PointLightPositions[i].x, m_PointLightPositions[i].y, glm::cos(m_LastFrameTime) * m_PointLightPositions[i].z });
-        m_LitShader->SetUniform4f(pointLightName + ".ambient", 0.05f, 0.05f, 0.05f, 1.0f); // Ambient light color
-        m_LitShader->SetUniform4f(pointLightName + ".diffuse", 0.8f, 0.8f, 0.8f, 1.0f); // Diffuse light color
-        m_LitShader->SetUniform4f(pointLightName + ".specular", 1.0f, 1.0f, 1.0f, 1.0f); // Specular light color
-
-        // We want the point light to cover a distance of 50 units, so we set the attenuation factors accordingly
-        m_LitShader->SetUniformFloat(pointLightName + ".constant", pointLightAttenuationFactors.x);
-        m_LitShader->SetUniformFloat(pointLightName + ".linear", pointLightAttenuationFactors.y);
-        m_LitShader->SetUniformFloat(pointLightName + ".quadratic", pointLightAttenuationFactors.z);
-    }
-
-    // Update the spot light uniforms
-    // The spot light is the camera itself, so we set its position to the camera's world position
-    m_LitShader->SetVector3f("u_SpotLight.position", m_Camera.GetWorldPosition()); // Position of the spot light
-    m_LitShader->SetVector3f("u_SpotLight.direction", m_Camera.GetForwardDirection()); // Direction of the spot light
-    m_LitShader->SetUniform4f("u_SpotLight.ambient", 0.0f, 0.0f, 0.0f, 1.0f); // Ambient light color
-    m_LitShader->SetUniform4f("u_SpotLight.diffuse", 1.0f, 1.0f, 1.0f, 1.0f); // Diffuse light color
-    m_LitShader->SetUniform4f("u_SpotLight.specular", 1.0f, 1.0f, 1.0f, 1.0f); // Specular light color
-    m_LitShader->SetUniformFloat("u_SpotLight.constant", pointLightAttenuationFactors.x);
-    m_LitShader->SetUniformFloat("u_SpotLight.linear", pointLightAttenuationFactors.y);
-    m_LitShader->SetUniformFloat("u_SpotLight.quadratic", pointLightAttenuationFactors.z);
-    m_LitShader->SetUniformFloat("u_SpotLight.cutOff", glm::cos(glm::radians(5.0f))); // Inner cut-off angle for the spot light
-    m_LitShader->SetUniformFloat("u_SpotLight.outerCutOff", glm::cos(glm::radians(17.5f))); // Outer cut-off angle for the spot light
+    SetLightingUniforms(*m_LitShader);
 
     // Set the model, view and projection matrix uniforms
-    glm::mat4 projection = glm::perspective(glm::radians(m_Camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
+    glm::mat4 projection = glm::perspective(glm::radians(m_Camera.GetFOV()), (float)m_ViewportWidth / (float)m_ViewportHeight, 0.1f, 100.0f);
     glm::mat4 view = m_Camera.GetViewMatrix();
     glm::mat4 model = glm::mat4(1.0f);
 
@@ -318,11 +283,8 @@ void Application::RenderScene()
     m_BackpackModel->Draw(*m_LitShader); // Draw the backpack model with the lit shader
 
     m_UnlitShader->Use();
-
-    glm::mat4 lightProjection = glm::perspective(glm::radians(m_Camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
-    glm::mat4 lightView = m_Camera.GetViewMatrix();
-    m_UnlitShader->SetMatrix4f("u_Projection", lightProjection); // Send the projection matrix to the shader
-    m_UnlitShader->SetMatrix4f("u_View", lightView); // Pass the camera view matrix to the shader
+    m_UnlitShader->SetMatrix4f("u_Projection", projection); // Send the projection matrix to the shader
+    m_UnlitShader->SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
 
     // Calculate the point lights model matrices and render them
     for (unsigned int i = 0; i < m_PointLightPositions.size(); i++)
@@ -337,4 +299,44 @@ void Application::RenderScene()
         // Render the light source model
         m_LightSourceMesh->Draw(*m_UnlitShader);
     }
+}
+
+void Application::SetLightingUniforms(const Shader& shader)
+{
+    // Update the directional light uniforms
+    shader.SetUniform3f("u_DirectionalLight.direction", -0.2f, -1.0f, -0.3f); // Directional light pointing downwards
+    shader.SetUniform4f("u_DirectionalLight.ambient", 0.2f, 0.2f, 0.2f, 1.0f);
+    shader.SetUniform4f("u_DirectionalLight.diffuse", 0.8f, 0.8f, 0.8f, 1.0f);
+    shader.SetUniform4f("u_DirectionalLight.specular", 0.5f, 0.5f, 0.5f, 1.0f);
+
+    // Update the point light uniforms
+    const glm::vec3 pointLightAttenuationFactors{ 1.0f, 0.09f, 0.032f }; // Constant, linear and quadratic attenuation factors
+    for (unsigned int i = 0; i < m_PointLightPositions.size(); i++)
+    {
+        std::string pointLightName;
+        pointLightName.reserve(48); // Reserve space for the string to avoid reallocations
+        pointLightName = "u_PointLights[" + std::to_string(i) + "]";
+        shader.SetVector3f(pointLightName + ".position", { glm::sin(m_LastFrameTime) * m_PointLightPositions[i].x, m_PointLightPositions[i].y, glm::cos(m_LastFrameTime) * m_PointLightPositions[i].z });
+        shader.SetUniform4f(pointLightName + ".ambient", 0.05f, 0.05f, 0.05f, 1.0f); // Ambient light color
+        shader.SetUniform4f(pointLightName + ".diffuse", 0.8f, 0.8f, 0.8f, 1.0f); // Diffuse light color
+        shader.SetUniform4f(pointLightName + ".specular", 1.0f, 1.0f, 1.0f, 1.0f); // Specular light color
+
+        // We want the point light to cover a distance of 50 units, so we set the attenuation factors accordingly
+        shader.SetUniformFloat(pointLightName + ".constant", pointLightAttenuationFactors.x);
+        shader.SetUniformFloat(pointLightName + ".linear", pointLightAttenuationFactors.y);
+        shader.SetUniformFloat(pointLightName + ".quadratic", pointLightAttenuationFactors.z);
+    }
+
+    // Update the spot light uniforms
+    // The spot light is the camera itself, so we set its position to the camera's world position
+    shader.SetVector3f("u_SpotLight.position", m_Camera.GetWorldPosition()); // Position of the spot light
+    shader.SetVector3f("u_SpotLight.direction", m_Camera.GetForwardDirection()); // Direction of the spot light
+    shader.SetUniform4f("u_SpotLight.ambient", 0.0f, 0.0f, 0.0f, 1.0f); // Ambient light color
+    shader.SetUniform4f("u_SpotLight.diffuse", 1.0f, 1.0f, 1.0f, 1.0f); // Diffuse light color
+    shader.SetUniform4f("u_SpotLight.specular", 1.0f, 1.0f, 1.0f, 1.0f); // Specular light color
+    shader.SetUniformFloat("u_SpotLight.constant", pointLightAttenuationFactors.x);
+    shader.SetUniformFloat("u_SpotLight.linear", pointLightAttenuationFactors.y);
+    shader.SetUniformFloat("u_SpotLight.quadratic", pointLightAttenuationFactors.z);
+    shader.SetUniformFloat("u_SpotLight.cutOff", glm::cos(glm::radians(5.0f))); // Inner cut-off angle for the spot light
+    shader.SetUniformFloat("u_SpotLight.outerCutOff", glm::cos(glm::radians(17.5f))); // Outer cut-off angle for the spot light
 }

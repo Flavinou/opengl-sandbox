@@ -23,6 +23,8 @@ public:
 	void ProcessInput();
 	void RenderScene();
 private:
+	void SetLightingUniforms(const Shader& shader);
+private:
 	void FramebufferSizeCallback(int width, int height);
 	void MouseCallback(double xpos, double ypos);
 	void ScrollCallback(double xoffset, double yoffset);
