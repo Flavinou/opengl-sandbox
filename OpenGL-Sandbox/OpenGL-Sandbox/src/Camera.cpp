@@ -44,6 +44,8 @@ void Camera::OnMouseMove(glm::vec2 offset, bool constrainPitch /*= true*/)
 
 void Camera::OnMouseScroll(float yOffset)
 {
+    if (isFOVLocked) return;
+
     m_FOV -= (float)yOffset;
     if (m_FOV < 1.0f)
         m_FOV = 1.0f;

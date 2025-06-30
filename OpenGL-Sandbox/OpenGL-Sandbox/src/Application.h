@@ -50,4 +50,7 @@ private:
 
 	// Utilities
 	std::vector<glm::vec3> m_PointLightPositions;
+
+	// Uniform buffers
+	unsigned int m_UboMatrices;
 };

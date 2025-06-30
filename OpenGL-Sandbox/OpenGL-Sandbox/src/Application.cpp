@@ -15,7 +15,11 @@ const unsigned int SCREEN_HEIGHT = 900;
 
 int main()
 {
-	Application* app = new Application(SCREEN_WIDTH, SCREEN_HEIGHT, Camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f));
+    // No more zooming possible
+    Camera camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f);
+    camera.LockFOV();
+
+	Application* app = new Application(SCREEN_WIDTH, SCREEN_HEIGHT, camera);
 
     app->Run();
 
@@ -120,6 +124,9 @@ Application::Application(int viewportWidth, int viewportHeight, const Camera& ca
 
 Application::~Application()
 {
+    // Cleanup OpenGL resources
+    glDeleteBuffers(1, &m_UboMatrices);
+
     // Cleanup GLFW resources
     if (m_Window)
     {
@@ -207,12 +214,34 @@ void Application::Initialize()
         //glm::vec3(0.0f, 0.0f, -3.0f)
     };
 
+
 	// Create meshes
     m_LightSourceMesh = std::make_shared<AssetLoader::Mesh>(cubeVertices, sizeof(cubeVertices) / sizeof(cubeVertices[0]), 8);
 
     // Bind the lit shader first to set the material shininess which is not meant to change
     m_LitShader->Use();
 	m_LitShader->SetUniformFloat("u_Material.shininess", 32.0f);
+
+    // Get uniform block location for vertex shader
+    unsigned int uniformBlockIndexLit = glGetUniformBlockIndex(m_LitShader->GetID(), "Matrices");
+    glUniformBlockBinding(m_LitShader->GetID(), uniformBlockIndexLit, 0);
+
+    unsigned int uniformBlockIndexUnlit = glGetUniformBlockIndex(m_UnlitShader->GetID(), "Matrices");
+    glUniformBlockBinding(m_UnlitShader->GetID(), uniformBlockIndexLit, 0);
+
+    // Create uniform buffer object
+    glGenBuffers(1, &m_UboMatrices);
+    glBindBuffer(GL_UNIFORM_BUFFER, m_UboMatrices);
+    glBufferData(GL_UNIFORM_BUFFER, 2 * sizeof(glm::mat4), nullptr, GL_STATIC_DRAW);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+    glBindBufferRange(GL_UNIFORM_BUFFER, 0, m_UboMatrices, 0, 2 * sizeof(glm::mat4));
+
+    // No more field of view modification, only send it once
+    glm::mat4 projection = glm::perspective(glm::radians(m_Camera.GetFOV()), (float)m_ViewportWidth / (float)m_ViewportHeight, 0.1f, 100.0f);
+    glBindBuffer(GL_UNIFORM_BUFFER, m_UboMatrices);
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(projection));
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
 void Application::Run()
@@ -265,6 +294,11 @@ void Application::RenderScene()
     // Wireframe mode
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
+    glm::mat4 view = m_Camera.GetViewMatrix();
+    glBindBuffer(GL_UNIFORM_BUFFER, m_UboMatrices);
+    glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(view));
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
     m_LitShader->Use();
 
     m_LitShader->SetVector3f("u_ViewPosition", m_Camera.GetWorldPosition());
@@ -307,22 +341,12 @@ void Application::RenderScene()
     m_LitShader->SetUniformFloat("u_SpotLight.outerCutOff", glm::cos(glm::radians(17.5f))); // Outer cut-off angle for the spot light
 
     // Set the model, view and projection matrix uniforms
-    glm::mat4 projection = glm::perspective(glm::radians(m_Camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
-    glm::mat4 view = m_Camera.GetViewMatrix();
     glm::mat4 model = glm::mat4(1.0f);
-
-    m_LitShader->SetMatrix4f("u_Projection", projection); // Send the projection matrix to the shader
-    m_LitShader->SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
     m_LitShader->SetMatrix4f("u_Model", model); // Set the model matrix for the shader
 
     m_BackpackModel->Draw(*m_LitShader); // Draw the backpack model with the lit shader
 
     m_UnlitShader->Use();
-
-    glm::mat4 lightProjection = glm::perspective(glm::radians(m_Camera.GetFOV()), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
-    glm::mat4 lightView = m_Camera.GetViewMatrix();
-    m_UnlitShader->SetMatrix4f("u_Projection", lightProjection); // Send the projection matrix to the shader
-    m_UnlitShader->SetMatrix4f("u_View", lightView); // Pass the camera view matrix to the shader
 
     // Calculate the point lights model matrices and render them
     for (unsigned int i = 0; i < m_PointLightPositions.size(); i++)
