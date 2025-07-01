@@ -1,4 +1,5 @@
 #include "Application.h"
+#include "TextureManager.h"
 
 #include <iostream>
 #include <fstream>
@@ -64,6 +65,9 @@ Application::Application(int viewportWidth, int viewportHeight, const Camera& ca
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
+
+    // Request a multisample buffer for 4x the size of the normal framebuffer
+    //glfwWindowHint(GLFW_SAMPLES, 4);
 
     // Create the window
     m_Window = glfwCreateWindow(m_ViewportWidth, m_ViewportHeight, "OpenGL Sandbox", NULL, NULL);
@@ -133,9 +137,11 @@ void Application::Initialize()
 {
     glEnable(GL_DEPTH_TEST);
 
-    // Create shaders
+    // Load assets
     m_LitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/LitFragment.glsl");
     m_UnlitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/UnlitFragment.glsl");
+    m_ScreenShader = std::make_shared<Shader>("resources/shaders/AAPostProcessingVertex.glsl", "resources/shaders/AAPostProcessingFragment.glsl");
+    m_CubeTexture = TextureManager::Instance().Get("resources/textures/container2.png");
 
     // Create model
     m_BackpackModel = std::make_shared<AssetLoader::Model>("resources/models/backpack/backpack.obj");
@@ -207,12 +213,95 @@ void Application::Initialize()
         //glm::vec3(0.0f, 0.0f, -3.0f)
     };
 
+    float quadVertices[] = {   // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
+        // positions   // texCoords
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        -1.0f, -1.0f,  0.0f, 0.0f,
+         1.0f, -1.0f,  1.0f, 0.0f,
+
+        -1.0f,  1.0f,  0.0f, 1.0f,
+         1.0f, -1.0f,  1.0f, 0.0f,
+         1.0f,  1.0f,  1.0f, 1.0f
+    };
+
 	// Create meshes
     m_LightSourceMesh = std::make_shared<AssetLoader::Mesh>(cubeVertices, sizeof(cubeVertices) / sizeof(cubeVertices[0]), 8);
 
+    m_CubeMesh = std::make_shared<AssetLoader::Mesh>(cubeVertices, sizeof(cubeVertices) / sizeof(cubeVertices[0]), 8);
+
+    const int stride = 4 * sizeof(float);
+    int size = sizeof(quadVertices);
+    int count = size / stride;
+    m_ScreenQuadMesh = std::make_shared<AssetLoader::SimpleMesh>(quadVertices, size, count);
+    m_ScreenQuadMesh->SetVertexAttribute(0, 2, GL_FLOAT, false, stride, (void*)0); // Position attribute
+    m_ScreenQuadMesh->SetVertexAttribute(1, 2, GL_FLOAT, false, stride, (void*)(2 * sizeof(float))); // Texture coordinate attribute
+
+    // Setup MSAA framebuffer
+    
+    // Create framebuffer
+    glGenFramebuffers(1, &m_MultisampleFramebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_MultisampleFramebuffer);
+
+    // Create MSAA texture target
+    m_MultisampleTexture = std::make_shared<Texture>(GL_TEXTURE_2D_MULTISAMPLE, m_ViewportWidth, m_ViewportHeight);
+    m_MultisampleTexture->SetSamples(4);
+    m_MultisampleTexture->Bind();
+    m_MultisampleTexture->SetData(nullptr, GL_RGB);
+    m_MultisampleTexture->Unbind();
+
+    // Attach multisampling texture to the currently bound framebuffer
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, m_MultisampleTexture->GetID(), 0);
+
+    // Create a renderbuffer object for depth and stencil testing
+    unsigned int rboDepthStencil;
+    glGenRenderbuffers(1, &rboDepthStencil);
+    glBindRenderbuffer(GL_RENDERBUFFER, rboDepthStencil);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, m_MultisampleTexture->GetSamples(), GL_DEPTH24_STENCIL8, m_ViewportWidth, m_ViewportHeight);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+    // Attach the renderbuffer to the currently bound framebuffer
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rboDepthStencil);
+
+    // Check if the framebuffer is complete
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
+        std::cout << "[ERROR]: Framebuffer is not complete!" << std::endl;
+        return;
+    }
+
+    // Unbind the framebuffer to avoid accidental modifications
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Setup second post-processing framebuffer
+
+    // Create framebuffer
+    glGenFramebuffers(1, &m_PostProcessingFramebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_PostProcessingFramebuffer);
+
+    // Create screen texture target
+    m_ScreenTexture = std::make_shared<Texture>(GL_TEXTURE_2D, m_ViewportWidth, m_ViewportHeight);
+    m_ScreenTexture->SetData(nullptr, GL_RGB);
+    m_ScreenTexture->SetFilterMode(GL_LINEAR);
+
+    // Attach multisampling texture to the currently bound framebuffer
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_ScreenTexture->GetID(), 0);
+
+    // Check if the framebuffer is complete
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
+        std::cout << "[ERROR]: Framebuffer is not complete!" << std::endl;
+        return;
+    }
+
+    // Unbind the framebuffer to avoid accidental modifications
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
     // Bind the lit shader first to set the material shininess which is not meant to change
     m_LitShader->Use();
-	m_LitShader->SetUniformFloat("u_Material.shininess", 32.0f);
+    m_LitShader->SetUniformFloat("u_Material.shininess", 32.0f);
+
+    m_ScreenShader->Use();
+    m_ScreenShader->SetUniformInt("u_ScreenTexture", 0);
 }
 
 void Application::Run()
@@ -258,9 +347,17 @@ void Application::ProcessInput()
 
 void Application::RenderScene()
 {
+    // Clear default framebuffer
+    glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // Draw scene as normal using multisampled framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, m_MultisampleFramebuffer);
+
     // Rendering anything happens here
     glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
 
     // Wireframe mode
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -278,6 +375,12 @@ void Application::RenderScene()
 
     m_LitShader->SetMatrix4f("u_Projection", projection); // Send the projection matrix to the shader
     m_LitShader->SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
+    m_LitShader->SetMatrix4f("u_Model", model); // Set the model matrix for the shader
+
+    m_CubeTexture->Bind();
+    m_CubeMesh->Draw(*m_LitShader);
+
+    model = glm::translate(model, glm::vec3(4.0f, 0.0f, 0.0f));
     m_LitShader->SetMatrix4f("u_Model", model); // Set the model matrix for the shader
 
     m_BackpackModel->Draw(*m_LitShader); // Draw the backpack model with the lit shader
@@ -299,6 +402,20 @@ void Application::RenderScene()
         // Render the light source model
         m_LightSourceMesh->Draw(*m_UnlitShader);
     }
+
+    // Now, blit multisampled buffer to normal colorbuffer of intermediate framebuffer - image is stored in screen texture
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, m_MultisampleFramebuffer);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_PostProcessingFramebuffer);
+    glBlitFramebuffer(0, 0, m_ViewportWidth, m_ViewportHeight, 0, 0, m_ViewportWidth, m_ViewportHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glDisable(GL_DEPTH_TEST);
+
+    m_ScreenShader->Use();
+    m_ScreenTexture->Bind();
+    m_ScreenQuadMesh->Draw();
 }
 
 void Application::SetLightingUniforms(const Shader& shader)

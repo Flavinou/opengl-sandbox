@@ -30,6 +30,7 @@ private:
 	void ScrollCallback(double xoffset, double yoffset);
 private:
 	int m_ViewportWidth, m_ViewportHeight;
+	int m_Samples = 4;
 	GLFWwindow* m_Window = nullptr;
 
 	float m_LastFrameTime = 0.0f;
@@ -45,11 +46,23 @@ private:
 	// Resources
 	std::shared_ptr<Shader> m_LitShader;
 	std::shared_ptr<Shader> m_UnlitShader;
+	std::shared_ptr<Shader> m_ScreenShader;
+
+	std::shared_ptr<Texture> m_CubeTexture;
+	std::shared_ptr<Texture> m_MultisampleTexture;
+	std::shared_ptr<Texture> m_ScreenTexture;
 
 	std::shared_ptr<AssetLoader::Model> m_BackpackModel;
 
 	std::shared_ptr<AssetLoader::Mesh> m_LightSourceMesh;
 
+	std::shared_ptr<AssetLoader::Mesh> m_CubeMesh;
+
+	std::shared_ptr<AssetLoader::SimpleMesh> m_ScreenQuadMesh;
+
 	// Utilities
 	std::vector<glm::vec3> m_PointLightPositions;
+
+	// Multisampling
+	unsigned int m_MultisampleFramebuffer, m_PostProcessingFramebuffer;
 };
