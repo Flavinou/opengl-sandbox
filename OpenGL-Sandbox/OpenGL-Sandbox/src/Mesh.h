@@ -24,6 +24,21 @@ namespace AssetLoader
 		std::string Type;
 	};
 
+    class BaseObject
+    {
+    public:
+        void AddVertexBuffer(unsigned int& buffer);
+        void SetVertexBufferData(const void* data, int size);
+        void BindVertexBuffer(unsigned int buffer);
+        void UnbindVertexBuffer();
+
+        void BindVertexArray(unsigned int array);
+        void UnbindVertexArray();
+
+        void SetVertexAttribute(unsigned int index, unsigned int size, unsigned int type, bool normalized, unsigned int stride, const void* pointer) const;
+        void SetVertexAttributeInstanceRate(unsigned int index, unsigned int rate);
+    };
+
 	class Mesh
 	{
 	public:
@@ -32,8 +47,11 @@ namespace AssetLoader
 		Mesh(const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices, const std::vector<MeshTexture>& textures);
 		~Mesh();
 
+		const unsigned int GetVAO() const { return m_VAO; }
+
 		// Function to draw the mesh
 		void Draw(const Shader& shader) const;
+		void DrawInstanced(const Shader& shader, int instanceCount) const;
 	private:
 		void SetupMesh(); // Function to set up the mesh's OpenGL buffers and attributes
 	private:
@@ -45,15 +63,14 @@ namespace AssetLoader
 		std::vector<MeshTexture> m_Textures;	// List of textures applied to the mesh
 	};
 
-    class SimpleMesh
+    class SimpleMesh : public BaseObject
     {
     public:
         SimpleMesh(const float* vertices, int size, int count); // Default constructor for empty mesh
         ~SimpleMesh();
 
-        void SetVertexAttribute(unsigned int index, unsigned int size, unsigned int type, bool normalized, unsigned int stride, const void* pointer) const;
-
         void Draw() const;
+		void DrawInstanced(int instanceCount) const;
     private:
         unsigned int m_VAO, m_VBO; // Vertex Array Object and Vertex Buffer Object IDs
 

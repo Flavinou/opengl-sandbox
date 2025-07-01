@@ -39,6 +39,14 @@ Shader::Shader(const char* vertexPath, const char* fragmentPath)
     m_ID = CreateShader(vertexSource, fragmentSource);
 }
 
+Shader::Shader(const char* vertexPath, const char* fragmentPath, const char* geometryPath)
+{
+    std::string vertexSource = File::Load(vertexPath);
+    std::string geometrySource = File::Load(geometryPath);
+    std::string fragmentSource = File::Load(fragmentPath);
+    m_ID = CreateShader(vertexSource, fragmentSource, geometrySource);
+}
+
 Shader::~Shader()
 {
     glDeleteProgram(m_ID);
@@ -153,6 +161,81 @@ unsigned int Shader::CreateShader(const std::string& vertexSource, const std::st
 
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
+
+    return shaderProgram;
+}
+
+unsigned int Shader::CreateShader(const std::string& vertexSource, const std::string& fragmentSource, const std::string& geometrySource)
+{
+    // Vertex shader
+    const char* vertexStr = vertexSource.c_str();
+    const char* fragmentStr = fragmentSource.c_str();
+    const char* geometryStr = geometrySource.c_str();
+
+    unsigned int vertexShader, fragmentShader, geometryShader;
+    vertexShader = glCreateShader(GL_VERTEX_SHADER);
+
+    glShaderSource(vertexShader, 1, &vertexStr, nullptr);
+    glCompileShader(vertexShader);
+
+    // Vertex shader compilation errors
+    int success;
+    char infoLog[512];
+    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(vertexShader, 512, nullptr, infoLog);
+        std::cerr << "[ERROR]: Vertex shader compilation failed: " << infoLog << std::endl;
+    }
+
+    // Fragment shader
+    fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+
+    glShaderSource(fragmentShader, 1, &fragmentStr, nullptr);
+    glCompileShader(fragmentShader);
+
+    // Fragment shader compilation errors
+    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(fragmentShader, 512, nullptr, infoLog);
+        std::cerr << "[ERROR]: Fragment shader compilation failed: " << infoLog << std::endl;
+    }
+
+    // Geometry shader
+    geometryShader = glCreateShader(GL_GEOMETRY_SHADER);
+
+    glShaderSource(geometryShader, 1, &geometryStr, nullptr);
+    glCompileShader(geometryShader);
+
+    // Geometry shader compilation errors
+    glGetShaderiv(geometryShader, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(geometryShader, 512, nullptr, infoLog);
+        std::cerr << "[ERROR]: Geometry shader compilation failed: " << infoLog << std::endl;
+    }
+
+    // Link shaders together
+    unsigned int shaderProgram;
+    shaderProgram = glCreateProgram();
+
+    glAttachShader(shaderProgram, vertexShader);
+    glAttachShader(shaderProgram, fragmentShader);
+    glAttachShader(shaderProgram, geometryShader);
+    glLinkProgram(shaderProgram);
+
+    // Check for shader linking errors
+    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+    if (!success)
+    {
+        glGetProgramInfoLog(shaderProgram, 512, nullptr, infoLog);
+        std::cerr << "[ERROR]: Shaders linking failed: " << infoLog << std::endl;
+    }
+
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+    glDeleteShader(geometryShader);
 
     return shaderProgram;
 }

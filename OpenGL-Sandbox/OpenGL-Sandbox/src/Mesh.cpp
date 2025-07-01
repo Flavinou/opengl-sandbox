@@ -66,7 +66,41 @@ namespace AssetLoader
 		glBindVertexArray(0); // Unbind VAO
 	}
 
-	void Mesh::SetupMesh()
+    void Mesh::DrawInstanced(const Shader& shader, int instanceCount) const
+    {
+        unsigned int diffuseNr = 1;
+        unsigned int specularNr = 1;
+        for (unsigned int i = 0; i < m_Textures.size(); i++)
+        {
+            // Retrieve texture number (the "N" in diffuse_textureN)
+            std::string number;
+            std::string name = std::string(m_Textures[i].Type);
+            if (name == "texture_diffuse")
+                number = std::to_string(diffuseNr++);
+            else if (name == "texture_specular")
+                number = std::to_string(specularNr++);
+            else
+                continue; // Skip other types
+
+            shader.SetUniformInt("u_Material." + name + number, i);
+            m_Textures[i].Texture->Bind(i);
+        }
+        glActiveTexture(GL_TEXTURE0); // Reset to default texture unit
+
+        // Draw mesh
+        glBindVertexArray(m_VAO);
+
+        // Draw elements using indices - ONE draw call per mesh
+        // There is room for optimization here, as we could batch draw calls if multiple meshes share the same textures
+        if (!m_Indices.empty())
+            glDrawElementsInstanced(GL_TRIANGLES, static_cast<unsigned int>(m_Indices.size()), GL_UNSIGNED_INT, nullptr, instanceCount);
+        else
+            glDrawArraysInstanced(GL_TRIANGLES, 0, static_cast<unsigned int>(m_Vertices.size()), instanceCount);
+
+        glBindVertexArray(0); // Unbind VAO
+    }
+
+    void Mesh::SetupMesh()
 	{
 		glGenVertexArrays(1, &m_VAO);
 		glGenBuffers(1, &m_VBO);
@@ -116,10 +150,46 @@ namespace AssetLoader
         glDeleteBuffers(1, &m_VBO);
     }
 
-    void SimpleMesh::SetVertexAttribute(unsigned int index, unsigned int size, unsigned int type, bool normalized, unsigned int stride, const void* pointer) const
+    void BaseObject::AddVertexBuffer(unsigned int & buffer)
+    {
+        glGenBuffers(1, &buffer);
+        glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    }
+
+    void BaseObject::SetVertexBufferData(const void* data, int size)
+    {
+        glBufferData(GL_ARRAY_BUFFER, size, data, GL_STATIC_DRAW);
+    }
+
+    void BaseObject::BindVertexBuffer(unsigned int buffer)
+    {
+        glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    }
+
+    void BaseObject::UnbindVertexBuffer()
+    {
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
+
+    void BaseObject::BindVertexArray(unsigned int array)
+    {
+        glBindVertexArray(array);
+    }
+
+    void BaseObject::UnbindVertexArray()
+    {
+        glBindVertexArray(0);
+    }
+
+    void BaseObject::SetVertexAttribute(unsigned int index, unsigned int size, unsigned int type, bool normalized, unsigned int stride, const void* pointer) const
     {
         glVertexAttribPointer(index, size, type, normalized ? GL_TRUE : GL_FALSE, stride, pointer);
         glEnableVertexAttribArray(index);
+    }
+
+    void BaseObject::SetVertexAttributeInstanceRate(unsigned int index, unsigned int rate)
+    {
+        glVertexAttribDivisor(index, rate);
     }
 
     void SimpleMesh::Draw() const
@@ -129,5 +199,14 @@ namespace AssetLoader
         glDrawArrays(GL_TRIANGLES, 0, m_Count);
         glBindVertexArray(0); // Unbind VAO
     }
+
+    void SimpleMesh::DrawInstanced(int instanceCount) const
+    {
+		// Draw `count` instances of the current mesh
+		glBindVertexArray(m_VAO);
+		glDrawArraysInstanced(GL_TRIANGLES, 0, m_Count, instanceCount);
+		glBindVertexArray(0);
+    }
+
 }
 

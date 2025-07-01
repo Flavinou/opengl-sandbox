@@ -8,6 +8,7 @@ class Shader
 {
 public:
     Shader(const char* vertexPath, const char* fragmentPath);
+    Shader(const char* vertexPath, const char* fragmentPath, const char* geometryPath);
     ~Shader();
 
     void Use() const;
@@ -27,6 +28,7 @@ public:
 	void SetMatrix4f(const std::string& name, const glm::mat4& matrix) const;
 private:
     unsigned int CreateShader(const std::string& vertexSource, const std::string& fragmentSource);
+    unsigned int CreateShader(const std::string& vertexSource, const std::string& fragmentSource, const std::string& geometrySource);
 private:
     unsigned int m_ID;
 };

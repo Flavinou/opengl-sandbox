@@ -28,7 +28,15 @@ namespace AssetLoader
 		}
 	}
 
-	void Model::LoadModel(const std::string& path)
+    void Model::DrawInstanced(const Shader& shader, int instanceCount) const
+    {
+		for (const auto& mesh : m_Meshes)
+		{
+			mesh->DrawInstanced(shader, instanceCount);
+		}
+    }
+
+    void Model::LoadModel(const std::string& path)
 	{
 		// Load the model using Assimp
 		Assimp::Importer importer;
