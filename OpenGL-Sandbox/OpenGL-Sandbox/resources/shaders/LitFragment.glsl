@@ -63,6 +63,7 @@ uniform DirectionalLight u_DirectionalLight;
 uniform PointLight u_PointLights[MAX_POINT_LIGHTS];
 uniform SpotLight u_SpotLight;
 uniform Material u_Material;
+uniform bool u_UseBlinnPhong;
 
 // Function prototypes
 vec4 CalcDirLight(DirectionalLight light, vec3 normal, vec3 viewDir);
@@ -84,7 +85,7 @@ void main()
 	}
 
 	// Calculate lighting from spot light
-	result += CalcSpotLight(u_SpotLight, normal, FragPos, viewDir);
+//	result += CalcSpotLight(u_SpotLight, normal, FragPos, viewDir);
 
 	// Set the final fragment color
 	FragColor = result;
@@ -104,8 +105,17 @@ vec4 CalcDirLight(DirectionalLight light, vec3 normal, vec3 viewDir)
 	float diff = max(dot(normal, lightDir), 0.0);
 
 	// Specular shading
-	vec3 reflectDir = reflect(-lightDir, normal);
-	float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
+	float spec = 0.0;
+	if (u_UseBlinnPhong)
+	{
+		vec3 halfwayDir = normalize(lightDir + viewDir);
+		spec = pow(max(dot(normal, halfwayDir), 0.0), u_Material.shininess);
+	}
+	else 
+	{
+		vec3 reflectDir = reflect(-lightDir, normal);
+		spec = pow(max(dot(viewDir, reflectDir), 0.0), u_Material.shininess);
+	}
 
 	// Combine results
 	vec4 ambient = light.ambient * texture(u_Material.texture_diffuse1, TexCoords);
@@ -118,13 +128,23 @@ vec4 CalcDirLight(DirectionalLight light, vec3 normal, vec3 viewDir)
 vec4 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
 {
 	vec3 lightDir = normalize(light.position - fragPos);
+	vec3 halfwayDir = normalize(lightDir + viewDir);
 
 	// Diffuse shading
 	float diff = max(dot(normal, lightDir), 0.0);
 
 	// Specular shading
-	vec3 reflectDir = reflect(-lightDir, normal);
-	float spec = pow(max(dot(viewDir, reflectDir), 0.0), u_Material.shininess);
+	float spec = 0.0;
+	if (u_UseBlinnPhong)
+	{
+		vec3 halfwayDir = normalize(lightDir + viewDir);
+		spec = pow(max(dot(normal, halfwayDir), 0.0), u_Material.shininess);
+	}
+	else 
+	{
+		vec3 reflectDir = reflect(-lightDir, normal);
+		spec = pow(max(dot(viewDir, reflectDir), 0.0), u_Material.shininess);
+	}
 
 	// Attenuation
 	float distance = length(light.position - fragPos);
@@ -144,13 +164,23 @@ vec4 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
 vec4 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
 {
 	vec3 lightDir = normalize(light.position - fragPos);
+	vec3 halfwayDir = normalize(lightDir + viewDir);
 
 	// Diffuse shading
 	float diff = max(dot(normal, lightDir), 0.0);
 
 	// Specular shading
-	vec3 reflectDir = reflect(-lightDir, normal);
-	float spec = pow(max(dot(viewDir, reflectDir), 0.0), u_Material.shininess);
+	float spec = 0.0;
+	if (u_UseBlinnPhong)
+	{
+		vec3 halfwayDir = normalize(lightDir + viewDir);
+		spec = pow(max(dot(normal, halfwayDir), 0.0), u_Material.shininess);
+	}
+	else 
+	{
+		vec3 reflectDir = reflect(-lightDir, normal);
+		spec = pow(max(dot(viewDir, reflectDir), 0.0), u_Material.shininess);
+	}
 
 	// Attenuation
 	float distance = length(light.position - fragPos);

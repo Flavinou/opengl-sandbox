@@ -137,6 +137,9 @@ void Application::Initialize()
     m_LitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/LitFragment.glsl");
     m_UnlitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/UnlitFragment.glsl");
 
+	// Create textures
+	m_PlaneTexture = std::make_shared<Texture>("resources/textures/wooden_floor.png");
+
     // Create model
     m_BackpackModel = std::make_shared<AssetLoader::Model>("resources/models/backpack/backpack.obj");
 
@@ -203,16 +206,13 @@ void Application::Initialize()
     {
         //glm::vec3(0.7f, 0.2f, 2.0f),
         //glm::vec3(2.3f, -3.3f, -4.0f),
-        glm::vec3(-4.0f, 2.0f, -2.5f),
+        glm::vec3(-4.0f, 0.5f, -2.5f),
         //glm::vec3(0.0f, 0.0f, -3.0f)
     };
 
 	// Create meshes
     m_LightSourceMesh = std::make_shared<AssetLoader::Mesh>(cubeVertices, sizeof(cubeVertices) / sizeof(cubeVertices[0]), 8);
-
-    // Bind the lit shader first to set the material shininess which is not meant to change
-    m_LitShader->Use();
-	m_LitShader->SetUniformFloat("u_Material.shininess", 32.0f);
+	m_PlaneMesh = std::make_shared<AssetLoader::Mesh>(planeVertices, sizeof(planeVertices) / sizeof(planeVertices[0]), 8);
 }
 
 void Application::Run()
@@ -254,12 +254,34 @@ void Application::ProcessInput()
         m_Camera.OnKeyPressed(m_DeltaTime, CameraMovement::LEFT);
     if (glfwGetKey(m_Window, GLFW_KEY_D) == GLFW_PRESS)
         m_Camera.OnKeyPressed(m_DeltaTime, CameraMovement::RIGHT);
+
+	// Lighting toggles
+    if (glfwGetKey(m_Window, GLFW_KEY_B) == GLFW_PRESS && !m_BlinnPhongKeyPressed)
+    {
+        m_UseBlinnPhong = !m_UseBlinnPhong; // Toggle Blinn-Phong lighting model
+		m_BlinnPhongKeyPressed = true; // Prevent multiple toggles in one frame
+        std::cout << "Toggled Blinn-Phong lighting model: " << (m_UseBlinnPhong ? "ON" : "OFF") << std::endl;
+    }
+    if (glfwGetKey(m_Window, GLFW_KEY_B) == GLFW_RELEASE)
+    {
+        m_BlinnPhongKeyPressed = false; // Reset the key press state
+	}
+
+    if (glfwGetKey(m_Window, GLFW_KEY_F) == GLFW_PRESS)
+    {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Toggle wireframe mode
+        std::cout << "Toggled wireframe mode." << std::endl;
+    }
+    else
+    {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Fill mode
+	}
 }
 
 void Application::RenderScene()
 {
     // Rendering anything happens here
-    glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Wireframe mode
@@ -280,7 +302,10 @@ void Application::RenderScene()
     m_LitShader->SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
     m_LitShader->SetMatrix4f("u_Model", model); // Set the model matrix for the shader
 
-    m_BackpackModel->Draw(*m_LitShader); // Draw the backpack model with the lit shader
+    //m_BackpackModel->Draw(*m_LitShader); // Draw the backpack model with the lit shader
+
+	m_PlaneTexture->Bind(); // Bind the plane texture
+	m_PlaneMesh->Draw(*m_LitShader); // Draw the plane mesh with the lit shader
 
     m_UnlitShader->Use();
     m_UnlitShader->SetMatrix4f("u_Projection", projection); // Send the projection matrix to the shader
@@ -303,11 +328,14 @@ void Application::RenderScene()
 
 void Application::SetLightingUniforms(const Shader& shader)
 {
+    // Set the material shininess based on the lighting model we use
+    m_LitShader->SetUniformFloat("u_Material.shininess", m_UseBlinnPhong ? 32.0f : 8.0f);
+
     // Update the directional light uniforms
     shader.SetUniform3f("u_DirectionalLight.direction", -0.2f, -1.0f, -0.3f); // Directional light pointing downwards
-    shader.SetUniform4f("u_DirectionalLight.ambient", 0.2f, 0.2f, 0.2f, 1.0f);
-    shader.SetUniform4f("u_DirectionalLight.diffuse", 0.8f, 0.8f, 0.8f, 1.0f);
-    shader.SetUniform4f("u_DirectionalLight.specular", 0.5f, 0.5f, 0.5f, 1.0f);
+    shader.SetUniform4f("u_DirectionalLight.ambient", 0.0f, 0.0f, 0.0f, 1.0f);
+    shader.SetUniform4f("u_DirectionalLight.diffuse", 0.0f, 0.0f, 0.0f, 1.0f);
+    shader.SetUniform4f("u_DirectionalLight.specular", 0.0f, 0.0f, 0.0f, 1.0f);
 
     // Update the point light uniforms
     const glm::vec3 pointLightAttenuationFactors{ 1.0f, 0.09f, 0.032f }; // Constant, linear and quadratic attenuation factors
@@ -339,4 +367,7 @@ void Application::SetLightingUniforms(const Shader& shader)
     shader.SetUniformFloat("u_SpotLight.quadratic", pointLightAttenuationFactors.z);
     shader.SetUniformFloat("u_SpotLight.cutOff", glm::cos(glm::radians(5.0f))); // Inner cut-off angle for the spot light
     shader.SetUniformFloat("u_SpotLight.outerCutOff", glm::cos(glm::radians(17.5f))); // Outer cut-off angle for the spot light
+
+    // Blinn-Phong ?
+    shader.SetUniformBool("u_UseBlinnPhong", m_UseBlinnPhong);
 }

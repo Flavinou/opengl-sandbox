@@ -39,15 +39,21 @@ private:
 	glm::vec2 m_LastMousePos{ 0.0f, 0.0f };
 	bool m_FirstMouse = true;
 
+	// Lighting
+	bool m_UseBlinnPhong = false; // Use Blinn-Phong lighting model
+	bool m_BlinnPhongKeyPressed = false;
+
 	// Camera
 	Camera m_Camera;
 
 	// Resources
 	std::shared_ptr<Shader> m_LitShader;
 	std::shared_ptr<Shader> m_UnlitShader;
+	std::shared_ptr<Texture> m_PlaneTexture;
 
 	std::shared_ptr<AssetLoader::Model> m_BackpackModel;
 
+	std::shared_ptr<AssetLoader::Mesh> m_PlaneMesh;
 	std::shared_ptr<AssetLoader::Mesh> m_LightSourceMesh;
 
 	// Utilities
