@@ -153,6 +153,7 @@
   <ItemGroup>
     <ClCompile Include="src\Application.cpp" />
     <ClCompile Include="src\Camera.cpp" />
+    <ClCompile Include="src\Core.cpp" />
     <ClCompile Include="src\Mesh.cpp" />
     <ClCompile Include="src\Model.cpp" />
     <ClCompile Include="src\Shader.cpp" />
@@ -162,9 +163,13 @@
     <ClCompile Include="src\vendor\stb_image\stb_image.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="resources\shaders\DebugQuadDepthFragment.glsl" />
+    <None Include="resources\shaders\DebugQuadVertex.glsl" />
     <None Include="resources\shaders\DirectionalLightFragment.glsl" />
     <None Include="resources\shaders\LitFragment.glsl" />
     <None Include="resources\shaders\PointLightFragment.glsl" />
+    <None Include="resources\shaders\ShadowMappingFragment.glsl" />
+    <None Include="resources\shaders\ShadowMappingVertex.glsl" />
     <None Include="resources\shaders\SpotLightFragment.glsl" />
     <None Include="resources\shaders\UnlitFragment.glsl" />
     <None Include="resources\shaders\Vertex.glsl" />
@@ -172,6 +177,7 @@
   <ItemGroup>
     <ClInclude Include="src\Application.h" />
     <ClInclude Include="src\Camera.h" />
+    <ClInclude Include="src\Core.h" />
     <ClInclude Include="src\Mesh.h" />
     <ClInclude Include="src\Model.h" />
     <ClInclude Include="src\Shader.h" />

@@ -1,5 +1,8 @@
 #include "Application.h"
 
+#include "Core.h"
+#include "TextureManager.h"
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -12,6 +15,12 @@
 // Settings 
 const unsigned int SCREEN_WIDTH = 1600;
 const unsigned int SCREEN_HEIGHT = 900;
+
+const unsigned int SHADOW_WIDTH = 1024;
+const unsigned int SHADOW_HEIGHT = 1024;
+
+// Forward declaration
+void RenderMesh(const AssetLoader::Mesh& mesh, const Shader& shader, const glm::mat4& transform);
 
 int main()
 {
@@ -131,73 +140,131 @@ Application::~Application()
 
 void Application::Initialize()
 {
-    glEnable(GL_DEPTH_TEST);
+    GLCall(glEnable(GL_DEPTH_TEST));
 
     // Create shaders
     m_LitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/LitFragment.glsl");
     m_UnlitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/UnlitFragment.glsl");
+    m_ShadowMapShader = std::make_shared<Shader>("resources/shaders/ShadowMappingVertex.glsl", "resources/shaders/ShadowMappingFragment.glsl");
+    m_ScreenShader = std::make_shared<Shader>("resources/shaders/DebugQuadVertex.glsl", "resources/shaders/DebugQuadDepthFragment.glsl");
 
     // Create model
     m_BackpackModel = std::make_shared<AssetLoader::Model>("resources/models/backpack/backpack.obj");
 
 	// Create light source mesh
-    float cubeVertices[] =
-    {   // positions            // normals              // texture coords
-        -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     0.0f, 0.0f,
-         0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     1.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     0.0f, 0.0f,
+    //float cubeVertices[] =
+    //{   // positions            // normals              // texture coords
+    //    -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     0.0f, 0.0f,
+    //     0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     1.0f, 0.0f,
+    //     0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     1.0f, 1.0f,
+    //     0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     1.0f, 1.0f,
+    //    -0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     0.0f, 1.0f,
+    //    -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     0.0f, 0.0f,
 
-        -0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      0.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      0.0f, 0.0f,
+    //    -0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      0.0f, 0.0f,
+    //     0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      1.0f, 0.0f,
+    //     0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      1.0f, 1.0f,
+    //     0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      1.0f, 1.0f,
+    //    -0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      0.0f, 1.0f,
+    //    -0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      0.0f, 0.0f,
 
-        -0.5f,  0.5f,  0.5f,     -1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,     -1.0f,  0.0f,  0.0f,     1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,     -1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,     -1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,     -1.0f,  0.0f,  0.0f,     0.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,     -1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
+    //    -0.5f,  0.5f,  0.5f,     -1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
+    //    -0.5f,  0.5f, -0.5f,     -1.0f,  0.0f,  0.0f,     1.0f, 1.0f,
+    //    -0.5f, -0.5f, -0.5f,     -1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
+    //    -0.5f, -0.5f, -0.5f,     -1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
+    //    -0.5f, -0.5f,  0.5f,     -1.0f,  0.0f,  0.0f,     0.0f, 0.0f,
+    //    -0.5f,  0.5f,  0.5f,     -1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
 
-         0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,     1.0f,  0.0f,  0.0f,     1.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,     1.0f,  0.0f,  0.0f,     0.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
+    //     0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
+    //     0.5f,  0.5f, -0.5f,     1.0f,  0.0f,  0.0f,     1.0f, 1.0f,
+    //     0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
+    //     0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
+    //     0.5f, -0.5f,  0.5f,     1.0f,  0.0f,  0.0f,     0.0f, 0.0f,
+    //     0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
 
-        -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,     0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,     1.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,     1.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,     1.0f, 0.0f,
-        -0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,     0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,     0.0f, 1.0f,
+    //    -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,     0.0f, 1.0f,
+    //     0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,     1.0f, 1.0f,
+    //     0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,     1.0f, 0.0f,
+    //     0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,     1.0f, 0.0f,
+    //    -0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,     0.0f, 0.0f,
+    //    -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,     0.0f, 1.0f,
 
-        -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,     0.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,     1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,     1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,     1.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,     0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,     0.0f, 1.0f
+    //    -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,     0.0f, 1.0f,
+    //     0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,     1.0f, 1.0f,
+    //     0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,     1.0f, 0.0f,
+    //     0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,     1.0f, 0.0f,
+    //    -0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,     0.0f, 0.0f,
+    //    -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,     0.0f, 1.0f
+    //};
+
+    float cubeVertices[] = {
+        // back face
+        -1.0f, -1.0f, -1.0f,     0.0f,  0.0f, -1.0f,    0.0f, 0.0f, // bottom-left
+         1.0f,  1.0f, -1.0f,     0.0f,  0.0f, -1.0f,    1.0f, 1.0f, // top-right
+         1.0f, -1.0f, -1.0f,     0.0f,  0.0f, -1.0f,    1.0f, 0.0f, // bottom-right         
+         1.0f,  1.0f, -1.0f,     0.0f,  0.0f, -1.0f,    1.0f, 1.0f, // top-right
+        -1.0f, -1.0f, -1.0f,     0.0f,  0.0f, -1.0f,    0.0f, 0.0f, // bottom-left
+        -1.0f,  1.0f, -1.0f,     0.0f,  0.0f, -1.0f,    0.0f, 1.0f, // top-left
+        // front face
+        -1.0f, -1.0f,  1.0f,     0.0f,  0.0f,  1.0f,    0.0f, 0.0f, // bottom-left
+         1.0f, -1.0f,  1.0f,     0.0f,  0.0f,  1.0f,    1.0f, 0.0f, // bottom-right
+         1.0f,  1.0f,  1.0f,     0.0f,  0.0f,  1.0f,    1.0f, 1.0f, // top-right
+         1.0f,  1.0f,  1.0f,     0.0f,  0.0f,  1.0f,    1.0f, 1.0f, // top-right
+        -1.0f,  1.0f,  1.0f,     0.0f,  0.0f,  1.0f,    0.0f, 1.0f, // top-left
+        -1.0f, -1.0f,  1.0f,     0.0f,  0.0f,  1.0f,    0.0f, 0.0f, // bottom-left
+        // left face
+        -1.0f,  1.0f,  1.0f,    -1.0f,  0.0f,  0.0f,    1.0f, 0.0f, // top-right
+        -1.0f,  1.0f, -1.0f,    -1.0f,  0.0f,  0.0f,    1.0f, 1.0f, // top-left
+        -1.0f, -1.0f, -1.0f,    -1.0f,  0.0f,  0.0f,    0.0f, 1.0f, // bottom-left
+        -1.0f, -1.0f, -1.0f,    -1.0f,  0.0f,  0.0f,    0.0f, 1.0f, // bottom-left
+        -1.0f, -1.0f,  1.0f,    -1.0f,  0.0f,  0.0f,    0.0f, 0.0f, // bottom-right
+        -1.0f,  1.0f,  1.0f,    -1.0f,  0.0f,  0.0f,    1.0f, 0.0f, // top-right
+        // right face
+         1.0f,  1.0f,  1.0f,     1.0f,  0.0f,  0.0f,    1.0f, 0.0f, // top-left
+         1.0f, -1.0f, -1.0f,     1.0f,  0.0f,  0.0f,    0.0f, 1.0f, // bottom-right
+         1.0f,  1.0f, -1.0f,     1.0f,  0.0f,  0.0f,    1.0f, 1.0f, // top-right         
+         1.0f, -1.0f, -1.0f,     1.0f,  0.0f,  0.0f,    0.0f, 1.0f, // bottom-right
+         1.0f,  1.0f,  1.0f,     1.0f,  0.0f,  0.0f,    1.0f, 0.0f, // top-left
+         1.0f, -1.0f,  1.0f,     1.0f,  0.0f,  0.0f,    0.0f, 0.0f, // bottom-left     
+         // bottom face
+         -1.0f, -1.0f, -1.0f,     0.0f, -1.0f,  0.0f,    0.0f, 1.0f, // top-right
+          1.0f, -1.0f, -1.0f,     0.0f, -1.0f,  0.0f,    1.0f, 1.0f, // top-left
+          1.0f, -1.0f,  1.0f,     0.0f, -1.0f,  0.0f,    1.0f, 0.0f, // bottom-left
+          1.0f, -1.0f,  1.0f,     0.0f, -1.0f,  0.0f,    1.0f, 0.0f, // bottom-left
+         -1.0f, -1.0f,  1.0f,     0.0f, -1.0f,  0.0f,    0.0f, 0.0f, // bottom-right
+         -1.0f, -1.0f, -1.0f,     0.0f, -1.0f,  0.0f,    0.0f, 1.0f, // top-right
+         // top face
+         -1.0f,  1.0f, -1.0f,     0.0f,  1.0f,  0.0f,    0.0f, 1.0f, // top-left
+          1.0f,  1.0f , 1.0f,     0.0f,  1.0f,  0.0f,    1.0f, 0.0f, // bottom-right
+          1.0f,  1.0f, -1.0f,     0.0f,  1.0f,  0.0f,    1.0f, 1.0f, // top-right     
+          1.0f,  1.0f,  1.0f,     0.0f,  1.0f,  0.0f,    1.0f, 0.0f, // bottom-right
+         -1.0f,  1.0f, -1.0f,     0.0f,  1.0f,  0.0f,    0.0f, 1.0f, // top-left
+         -1.0f,  1.0f,  1.0f,     0.0f,  1.0f,  0.0f,    0.0f, 0.0f  // bottom-left        
     };
 
     // Plane vertices
     float planeVertices[] =
     {
         // positions            // normals          // texture coordinates (note we set these higher than 1 (together with GL_REPEAT as texture wrapping mode). this will cause the floor texture to repeat)
-         5.0f, -0.5f,  5.0f,    0.0f, 1.0f, 0.0f,   2.0f, 0.0f,
-        -5.0f, -0.5f,  5.0f,    0.0f, 1.0f, 0.0f,   0.0f, 0.0f,
-        -5.0f, -0.5f, -5.0f,    0.0f, 1.0f, 0.0f,   0.0f, 2.0f,
+         25.0f, -0.5f,  25.0f,    0.0f, 1.0f, 0.0f,   25.0f, 0.0f,
+        -25.0f, -0.5f,  25.0f,    0.0f, 1.0f, 0.0f,   0.0f, 0.0f,
+        -25.0f, -0.5f, -25.0f,    0.0f, 1.0f, 0.0f,   0.0f, 25.0f,
 
-         5.0f, -0.5f,  5.0f,    0.0f, 1.0f, 0.0f,   2.0f, 0.0f,
-        -5.0f, -0.5f, -5.0f,    0.0f, 1.0f, 0.0f,   0.0f, 2.0f,
-         5.0f, -0.5f, -5.0f,    0.0f, 1.0f, 0.0f,   2.0f, 2.0f
+         25.0f, -0.5f,  25.0f,    0.0f, 1.0f, 0.0f,   25.0f, 0.0f,
+        -25.0f, -0.5f, -25.0f,    0.0f, 1.0f, 0.0f,   0.0f, 25.0f,
+         25.0f, -0.5f, -25.0f,    0.0f, 1.0f, 0.0f,   25.0f, 25.0f
     };
+
+    //float quadVertices[] = {   // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
+    //    // positions   // texCoords
+    //    -1.0f,  1.0f,  0.0f, 1.0f,
+    //    -1.0f, -1.0f,  0.0f, 0.0f,
+    //     1.0f, -1.0f,  1.0f, 0.0f,
+
+    //    -1.0f,  1.0f,  0.0f, 1.0f,
+    //     1.0f, -1.0f,  1.0f, 0.0f,
+    //     1.0f,  1.0f,  1.0f, 1.0f
+    //};
 
     m_PointLightPositions =
     {
@@ -207,12 +274,46 @@ void Application::Initialize()
         //glm::vec3(0.0f, 0.0f, -3.0f)
     };
 
+    // Create textures
+    m_FloorTexture = TextureManager::Instance().Get("resources/textures/proto_wall_orange.png");
+
 	// Create meshes
+    m_PlaneMesh = std::make_shared<AssetLoader::Mesh>(planeVertices, sizeof(planeVertices) / sizeof(planeVertices[0]), 8);
     m_LightSourceMesh = std::make_shared<AssetLoader::Mesh>(cubeVertices, sizeof(cubeVertices) / sizeof(cubeVertices[0]), 8);
+
+    //const int stride = 4 * sizeof(float);
+    //int size = sizeof(quadVertices);
+    //int count = size / stride;
+    //m_ScreenQuadMesh = std::make_shared<AssetLoader::SimpleMesh>(quadVertices, size, count);
+    //m_ScreenQuadMesh->SetVertexAttribute(0, 2, GL_FLOAT, false, stride, (void*)0); // Position attribute
+    //m_ScreenQuadMesh->SetVertexAttribute(1, 2, GL_FLOAT, false, stride, (void*)(2 * sizeof(float))); // Texture coordinate attribute
+
+    // Create shadow / depth map framebuffer
+    GLCall(glGenFramebuffers(1, &m_DepthMapFramebuffer));
+
+    // Create depth map texture
+    m_DepthMapTexture = TextureManager::Instance().Get("ShadowMap", SHADOW_WIDTH, SHADOW_HEIGHT);
+    m_DepthMapTexture->SetData(nullptr, GL_DEPTH_COMPONENT);
+    m_DepthMapTexture->SetFilterMode(GL_NEAREST);
+    m_DepthMapTexture->SetWrapMode(GL_CLAMP_TO_BORDER);
+    m_DepthMapTexture->SetBorderColor(glm::vec4(1.0f));
+
+    // Attach depth texture to shadow map framebuffer
+    GLCall(glBindFramebuffer(GL_FRAMEBUFFER, m_DepthMapFramebuffer));
+    GLCall(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_DepthMapTexture->GetID(), 0));
+    GLCall(glDrawBuffer(GL_NONE));
+    GLCall(glReadBuffer(GL_NONE));
+    GLCall(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
     // Bind the lit shader first to set the material shininess which is not meant to change
     m_LitShader->Use();
-	m_LitShader->SetUniformFloat("u_Material.shininess", 32.0f);
+    m_LitShader->SetUniformFloat("u_Material.shininess", 32.0f);
+    m_LitShader->SetUniformInt("u_Material.shadow_map1", 1);
+
+    //m_ScreenShader->Use();
+    //m_ScreenShader->SetUniformInt("u_DepthMap", 0);
+
+    m_LightPosition = glm::vec3(-2.0f, 4.0f, -1.0f);
 }
 
 void Application::Run()
@@ -259,14 +360,82 @@ void Application::ProcessInput()
 void Application::RenderScene()
 {
     // Rendering anything happens here
-    glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    GLCall(glClearColor(0.15f, 0.15f, 0.15f, 1.0f));
+    GLCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+
+    // Wireframe mode
+    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    
+    // First pass, render to depth / shadow map (from light position perspective)
+    const float nearPlane = 1.0f, farPlane = 7.5f;
+    glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, nearPlane, farPlane);
+    glm::mat4 lightView = glm::lookAt(m_LightPosition, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+    glm::mat4 lightModel = glm::mat4(1.0f);
+
+    m_ShadowMapShader->Use();
+    m_ShadowMapShader->SetMatrix4f("u_LightSpace", lightSpaceMatrix);
+
+    GLCall(glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT));
+    GLCall(glBindFramebuffer(GL_FRAMEBUFFER, m_DepthMapFramebuffer));
+    GLCall(glClear(GL_DEPTH_BUFFER_BIT));
+
+    // Draw the floor
+    m_FloorTexture->Bind();
+
+    //lightModel = glm::translate(lightModel, glm::vec3(0.0f, -1.5f, 0.0f));
+    m_ShadowMapShader->SetMatrix4f("u_Model", lightModel);
+    m_PlaneMesh->Draw(*m_ShadowMapShader);
+
+    // Draw the backpack model
+    //lightModel = glm::mat4(1.0f);
+    //lightModel = glm::translate(lightModel, glm::vec3(0.0f, 0.0f, -6.0f));
+    //m_ShadowMapShader->SetMatrix4f("u_Model", lightModel);
+    //m_BackpackModel->Draw(*m_ShadowMapShader); // Draw the backpack model with the lit shader
+
+    // Draw cubes (using bound wood texture)
+    // "m_LightSourceMesh" is just a cube mesh scaled down to display the position of point lights
+    m_FloorTexture->Bind();
+    glm::mat4 cubeModel = glm::mat4(1.0f);
+    cubeModel = glm::translate(cubeModel, glm::vec3(0.0f, 1.5f, 0.0f));
+    cubeModel = glm::scale(cubeModel, glm::vec3(0.5f));
+    RenderMesh(*m_LightSourceMesh, *m_ShadowMapShader, cubeModel);
+
+    cubeModel = glm::mat4(1.0f);
+    cubeModel = glm::translate(cubeModel, glm::vec3(2.0f, 0.0f, 1.0f));
+    cubeModel = glm::scale(cubeModel, glm::vec3(0.5f));
+    RenderMesh(*m_LightSourceMesh, *m_ShadowMapShader, cubeModel);
+
+    cubeModel = glm::mat4(1.0f);
+    cubeModel = glm::translate(cubeModel, glm::vec3(-1.0f, 0.0f, 2.0f));
+    cubeModel = glm::rotate(cubeModel, glm::radians(60.0f), glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f)));
+    cubeModel = glm::scale(cubeModel, glm::vec3(0.25f));
+    RenderMesh(*m_LightSourceMesh, *m_ShadowMapShader, cubeModel);
+
+    // Calculate the point lights model matrices and render them
+    for (unsigned int i = 0; i < m_PointLightPositions.size(); i++)
+    {
+        glm::mat4 pointLightModel = glm::mat4(1.0f);
+        pointLightModel = glm::translate(pointLightModel, { glm::sin(m_LastFrameTime) * m_PointLightPositions[i].x, m_PointLightPositions[i].y, glm::cos(m_LastFrameTime) * m_PointLightPositions[i].z });
+        pointLightModel = glm::scale(pointLightModel, glm::vec3(0.2f)); // Scale down the light source
+
+        m_ShadowMapShader->SetMatrix4f("u_Model", pointLightModel);
+
+        // Render the light source model
+        m_LightSourceMesh->Draw(*m_ShadowMapShader);
+    }
+
+    // Second pass, render the scene normally using the generated depth/ shadow map
+    // Reset viewport
+    GLCall(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+    GLCall(glViewport(0, 0, m_ViewportWidth, m_ViewportHeight));
+    GLCall(glClearColor(0.15f, 0.15f, 0.15f, 1.0f));
+    GLCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
     // Wireframe mode
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     m_LitShader->Use();
-
     m_LitShader->SetVector3f("u_ViewPosition", m_Camera.GetWorldPosition());
 
     SetLightingUniforms(*m_LitShader);
@@ -278,9 +447,43 @@ void Application::RenderScene()
 
     m_LitShader->SetMatrix4f("u_Projection", projection); // Send the projection matrix to the shader
     m_LitShader->SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
+
+    //model = glm::translate(model, glm::vec3(0.0f, -1.5f, 0.0f));
     m_LitShader->SetMatrix4f("u_Model", model); // Set the model matrix for the shader
 
-    m_BackpackModel->Draw(*m_LitShader); // Draw the backpack model with the lit shader
+    // Shadow casting
+    m_LitShader->SetVector3f("u_LightPosition", m_LightPosition);
+    m_LitShader->SetMatrix4f("u_LightSpace", lightSpaceMatrix);
+
+    // Draw the floor
+    m_FloorTexture->Bind();
+    m_DepthMapTexture->Bind(1);
+    m_PlaneMesh->Draw(*m_LitShader);
+
+    // Draw the backpack model
+    //model = glm::mat4(1.0f);
+    //model = glm::translate(model, glm::vec3(0.0f, 0.0f, -6.0f));
+    //m_LitShader->SetMatrix4f("u_Model", model);
+    //m_BackpackModel->Draw(*m_LitShader); // Draw the backpack model with the lit shader
+
+    // Draw cubes (using bound wood texture)
+    // "m_LightSourceMesh" is just a cube mesh scaled down to display the position of point lights
+    m_FloorTexture->Bind();
+    cubeModel = glm::mat4(1.0f);
+    cubeModel = glm::translate(cubeModel, glm::vec3(0.0f, 1.5f, 0.0f));
+    cubeModel = glm::scale(cubeModel, glm::vec3(0.5f));
+    RenderMesh(*m_LightSourceMesh, *m_LitShader, cubeModel);
+
+    cubeModel = glm::mat4(1.0f);
+    cubeModel = glm::translate(cubeModel, glm::vec3(2.0f, 0.0f, 1.0f));
+    cubeModel = glm::scale(cubeModel, glm::vec3(0.5f));
+    RenderMesh(*m_LightSourceMesh, *m_LitShader, cubeModel);
+
+    cubeModel = glm::mat4(1.0f);
+    cubeModel = glm::translate(cubeModel, glm::vec3(-1.0f, 0.0f, 2.0f));
+    cubeModel = glm::rotate(cubeModel, glm::radians(60.0f), glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f)));
+    cubeModel = glm::scale(cubeModel, glm::vec3(0.25f));
+    RenderMesh(*m_LightSourceMesh, *m_LitShader, cubeModel);
 
     m_UnlitShader->Use();
     m_UnlitShader->SetMatrix4f("u_Projection", projection); // Send the projection matrix to the shader
@@ -339,4 +542,10 @@ void Application::SetLightingUniforms(const Shader& shader)
     shader.SetUniformFloat("u_SpotLight.quadratic", pointLightAttenuationFactors.z);
     shader.SetUniformFloat("u_SpotLight.cutOff", glm::cos(glm::radians(5.0f))); // Inner cut-off angle for the spot light
     shader.SetUniformFloat("u_SpotLight.outerCutOff", glm::cos(glm::radians(17.5f))); // Outer cut-off angle for the spot light
+}
+
+void RenderMesh(const AssetLoader::Mesh& mesh, const Shader& shader, const glm::mat4& transform)
+{
+    shader.SetMatrix4f("u_Model", transform);
+    mesh.Draw(shader);
 }

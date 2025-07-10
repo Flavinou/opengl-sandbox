@@ -49,6 +49,13 @@ Texture::Texture(const char* filePath)
 	}
 }
 
+Texture::Texture(int width, int height)
+    : m_FilePath(nullptr), m_ID(0), m_Width(width), m_Height(height)
+{
+    glGenTextures(1, &m_ID);
+    glBindTexture(GL_TEXTURE_2D, m_ID);
+}
+
 Texture::~Texture()
 {
 	glDeleteTextures(1, &m_ID);
@@ -64,4 +71,26 @@ void Texture::Bind(unsigned int slot) const
 void Texture::Unbind() const
 {
 	glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void Texture::SetFilterMode(int mode)
+{
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, mode);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mode);
+}
+
+void Texture::SetWrapMode(int mode)
+{
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, mode);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, mode);
+}
+
+void Texture::SetBorderColor(const glm::vec4& color)
+{
+	glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, &color[0]);
+}
+
+void Texture::SetData(const void* data, unsigned int internalFormat)
+{
+	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, m_Width, m_Height, 0, internalFormat, GL_UNSIGNED_BYTE, data);
 }

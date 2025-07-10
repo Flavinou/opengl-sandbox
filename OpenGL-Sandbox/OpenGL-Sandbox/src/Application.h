@@ -45,11 +45,24 @@ private:
 	// Resources
 	std::shared_ptr<Shader> m_LitShader;
 	std::shared_ptr<Shader> m_UnlitShader;
+    std::shared_ptr<Shader> m_ShadowMapShader;
+    std::shared_ptr<Shader> m_ScreenShader;
+
+	std::shared_ptr<Texture> m_FloorTexture;
 
 	std::shared_ptr<AssetLoader::Model> m_BackpackModel;
 
+	std::shared_ptr<AssetLoader::Mesh> m_PlaneMesh;
 	std::shared_ptr<AssetLoader::Mesh> m_LightSourceMesh;
+
+    std::shared_ptr<AssetLoader::SimpleMesh> m_ScreenQuadMesh;
 
 	// Utilities
 	std::vector<glm::vec3> m_PointLightPositions;
+
+	glm::vec3 m_LightPosition;
+
+	// Shadow / depth mapping
+	unsigned int m_DepthMapFramebuffer;
+	std::shared_ptr<Texture> m_DepthMapTexture;
 };

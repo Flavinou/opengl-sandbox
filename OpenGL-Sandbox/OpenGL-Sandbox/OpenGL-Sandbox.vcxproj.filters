@@ -42,6 +42,9 @@
     <ClCompile Include="src\TextureManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\Core.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\Vertex.glsl" />
@@ -50,6 +53,10 @@
     <None Include="resources\shaders\SpotLightFragment.glsl" />
     <None Include="resources\shaders\PointLightFragment.glsl" />
     <None Include="resources\shaders\DirectionalLightFragment.glsl" />
+    <None Include="resources\shaders\ShadowMappingVertex.glsl" />
+    <None Include="resources\shaders\ShadowMappingFragment.glsl" />
+    <None Include="resources\shaders\DebugQuadVertex.glsl" />
+    <None Include="resources\shaders\DebugQuadDepthFragment.glsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Shader.h">
@@ -71,6 +78,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Application.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Core.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
