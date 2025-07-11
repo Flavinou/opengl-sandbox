@@ -168,6 +168,9 @@
     <None Include="resources\shaders\DirectionalLightFragment.glsl" />
     <None Include="resources\shaders\LitFragment.glsl" />
     <None Include="resources\shaders\PointLightFragment.glsl" />
+    <None Include="resources\shaders\PointShadowMappingFragment.glsl" />
+    <None Include="resources\shaders\PointShadowMappingGeometry.glsl" />
+    <None Include="resources\shaders\PointShadowMappingVertex.glsl" />
     <None Include="resources\shaders\ShadowMappingFragment.glsl" />
     <None Include="resources\shaders\ShadowMappingVertex.glsl" />
     <None Include="resources\shaders\SpotLightFragment.glsl" />

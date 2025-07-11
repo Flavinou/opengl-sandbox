@@ -129,6 +129,8 @@ Application::Application(int viewportWidth, int viewportHeight, const Camera& ca
 
 Application::~Application()
 {
+    glDeleteFramebuffers(1, &m_DepthMapFramebuffer);
+
     // Cleanup GLFW resources
     if (m_Window)
     {
@@ -141,62 +143,17 @@ Application::~Application()
 void Application::Initialize()
 {
     GLCall(glEnable(GL_DEPTH_TEST));
+    GLCall(glEnable(GL_CULL_FACE));
 
     // Create shaders
     m_LitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/LitFragment.glsl");
     m_UnlitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/UnlitFragment.glsl");
-    m_ShadowMapShader = std::make_shared<Shader>("resources/shaders/ShadowMappingVertex.glsl", "resources/shaders/ShadowMappingFragment.glsl");
-    m_ScreenShader = std::make_shared<Shader>("resources/shaders/DebugQuadVertex.glsl", "resources/shaders/DebugQuadDepthFragment.glsl");
+    m_PointShadowMapShader = std::make_shared<Shader>("resources/shaders/PointShadowMappingVertex.glsl", "resources/shaders/PointShadowMappingFragment.glsl", "resources/shaders/PointShadowMappingGeometry.glsl");
 
     // Create model
     m_BackpackModel = std::make_shared<AssetLoader::Model>("resources/models/backpack/backpack.obj");
 
 	// Create light source mesh
-    //float cubeVertices[] =
-    //{   // positions            // normals              // texture coords
-    //    -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     0.0f, 0.0f,
-    //     0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     1.0f, 0.0f,
-    //     0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     1.0f, 1.0f,
-    //     0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     1.0f, 1.0f,
-    //    -0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     0.0f, 1.0f,
-    //    -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,     0.0f, 0.0f,
-
-    //    -0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      0.0f, 0.0f,
-    //     0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      1.0f, 0.0f,
-    //     0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      1.0f, 1.0f,
-    //     0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      1.0f, 1.0f,
-    //    -0.5f,  0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      0.0f, 1.0f,
-    //    -0.5f, -0.5f,  0.5f,     0.0f,  0.0f, 1.0f,      0.0f, 0.0f,
-
-    //    -0.5f,  0.5f,  0.5f,     -1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
-    //    -0.5f,  0.5f, -0.5f,     -1.0f,  0.0f,  0.0f,     1.0f, 1.0f,
-    //    -0.5f, -0.5f, -0.5f,     -1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
-    //    -0.5f, -0.5f, -0.5f,     -1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
-    //    -0.5f, -0.5f,  0.5f,     -1.0f,  0.0f,  0.0f,     0.0f, 0.0f,
-    //    -0.5f,  0.5f,  0.5f,     -1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
-
-    //     0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
-    //     0.5f,  0.5f, -0.5f,     1.0f,  0.0f,  0.0f,     1.0f, 1.0f,
-    //     0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
-    //     0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,     0.0f, 1.0f,
-    //     0.5f, -0.5f,  0.5f,     1.0f,  0.0f,  0.0f,     0.0f, 0.0f,
-    //     0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,     1.0f, 0.0f,
-
-    //    -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,     0.0f, 1.0f,
-    //     0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,     1.0f, 1.0f,
-    //     0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,     1.0f, 0.0f,
-    //     0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,     1.0f, 0.0f,
-    //    -0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,     0.0f, 0.0f,
-    //    -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,     0.0f, 1.0f,
-
-    //    -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,     0.0f, 1.0f,
-    //     0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,     1.0f, 1.0f,
-    //     0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,     1.0f, 0.0f,
-    //     0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,     1.0f, 0.0f,
-    //    -0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,     0.0f, 0.0f,
-    //    -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,     0.0f, 1.0f
-    //};
-
     float cubeVertices[] = {
         // back face
         -1.0f, -1.0f, -1.0f,     0.0f,  0.0f, -1.0f,    0.0f, 0.0f, // bottom-left
@@ -255,17 +212,6 @@ void Application::Initialize()
          25.0f, -0.5f, -25.0f,    0.0f, 1.0f, 0.0f,   25.0f, 25.0f
     };
 
-    //float quadVertices[] = {   // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
-    //    // positions   // texCoords
-    //    -1.0f,  1.0f,  0.0f, 1.0f,
-    //    -1.0f, -1.0f,  0.0f, 0.0f,
-    //     1.0f, -1.0f,  1.0f, 0.0f,
-
-    //    -1.0f,  1.0f,  0.0f, 1.0f,
-    //     1.0f, -1.0f,  1.0f, 0.0f,
-    //     1.0f,  1.0f,  1.0f, 1.0f
-    //};
-
     m_PointLightPositions =
     {
         //glm::vec3(0.7f, 0.2f, 2.0f),
@@ -281,39 +227,26 @@ void Application::Initialize()
     m_PlaneMesh = std::make_shared<AssetLoader::Mesh>(planeVertices, sizeof(planeVertices) / sizeof(planeVertices[0]), 8);
     m_LightSourceMesh = std::make_shared<AssetLoader::Mesh>(cubeVertices, sizeof(cubeVertices) / sizeof(cubeVertices[0]), 8);
 
-    //const int stride = 4 * sizeof(float);
-    //int size = sizeof(quadVertices);
-    //int count = size / stride;
-    //m_ScreenQuadMesh = std::make_shared<AssetLoader::SimpleMesh>(quadVertices, size, count);
-    //m_ScreenQuadMesh->SetVertexAttribute(0, 2, GL_FLOAT, false, stride, (void*)0); // Position attribute
-    //m_ScreenQuadMesh->SetVertexAttribute(1, 2, GL_FLOAT, false, stride, (void*)(2 * sizeof(float))); // Texture coordinate attribute
-
     // Create shadow / depth map framebuffer
     GLCall(glGenFramebuffers(1, &m_DepthMapFramebuffer));
 
-    // Create depth map texture
-    m_DepthMapTexture = TextureManager::Instance().Get("ShadowMap", SHADOW_WIDTH, SHADOW_HEIGHT);
-    m_DepthMapTexture->SetData(nullptr, GL_DEPTH_COMPONENT);
-    m_DepthMapTexture->SetFilterMode(GL_NEAREST);
-    m_DepthMapTexture->SetWrapMode(GL_CLAMP_TO_BORDER);
-    m_DepthMapTexture->SetBorderColor(glm::vec4(1.0f));
+    m_DepthCubemap = std::make_shared<Cubemap>(SHADOW_WIDTH, SHADOW_HEIGHT);
+    m_DepthCubemap->SetData(nullptr, GL_DEPTH_COMPONENT);
+    m_DepthCubemap->SetFilterMode(GL_NEAREST);
+    m_DepthCubemap->SetWrapMode(GL_CLAMP_TO_EDGE);
 
     // Attach depth texture to shadow map framebuffer
     GLCall(glBindFramebuffer(GL_FRAMEBUFFER, m_DepthMapFramebuffer));
-    GLCall(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_DepthMapTexture->GetID(), 0));
+    GLCall(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, m_DepthCubemap->GetID(), 0));
     GLCall(glDrawBuffer(GL_NONE));
     GLCall(glReadBuffer(GL_NONE));
     GLCall(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
     // Bind the lit shader first to set the material shininess which is not meant to change
     m_LitShader->Use();
-    m_LitShader->SetUniformFloat("u_Material.shininess", 32.0f);
+    m_LitShader->SetUniformFloat("u_Material.shininess", 64.0f);
+    m_LitShader->SetUniformInt("u_Material.texture_diffuse1", 0);
     m_LitShader->SetUniformInt("u_Material.shadow_map1", 1);
-
-    //m_ScreenShader->Use();
-    //m_ScreenShader->SetUniformInt("u_DepthMap", 0);
-
-    m_LightPosition = glm::vec3(-2.0f, 4.0f, -1.0f);
 }
 
 void Application::Run()
@@ -367,62 +300,77 @@ void Application::RenderScene()
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     
     // First pass, render to depth / shadow map (from light position perspective)
-    const float nearPlane = 1.0f, farPlane = 7.5f;
-    glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, nearPlane, farPlane);
-    glm::mat4 lightView = glm::lookAt(m_LightPosition, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+    const float nearPlane = 1.0f, farPlane = 25.0f;
+    glm::mat4 lightProjection = glm::perspective(glm::radians(90.0f), (float)SHADOW_WIDTH / (float)SHADOW_HEIGHT, nearPlane, farPlane);
     glm::mat4 lightModel = glm::mat4(1.0f);
 
-    m_ShadowMapShader->Use();
-    m_ShadowMapShader->SetMatrix4f("u_LightSpace", lightSpaceMatrix);
+    m_PointShadowMapShader->Use();
+    m_PointShadowMapShader->SetUniformFloat("u_FarPlane", farPlane);
 
-    GLCall(glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT));
-    GLCall(glBindFramebuffer(GL_FRAMEBUFFER, m_DepthMapFramebuffer));
-    GLCall(glClear(GL_DEPTH_BUFFER_BIT));
-
-    // Draw the floor
-    m_FloorTexture->Bind();
-
-    //lightModel = glm::translate(lightModel, glm::vec3(0.0f, -1.5f, 0.0f));
-    m_ShadowMapShader->SetMatrix4f("u_Model", lightModel);
-    m_PlaneMesh->Draw(*m_ShadowMapShader);
-
-    // Draw the backpack model
-    //lightModel = glm::mat4(1.0f);
-    //lightModel = glm::translate(lightModel, glm::vec3(0.0f, 0.0f, -6.0f));
-    //m_ShadowMapShader->SetMatrix4f("u_Model", lightModel);
-    //m_BackpackModel->Draw(*m_ShadowMapShader); // Draw the backpack model with the lit shader
-
-    // Draw cubes (using bound wood texture)
-    // "m_LightSourceMesh" is just a cube mesh scaled down to display the position of point lights
-    m_FloorTexture->Bind();
-    glm::mat4 cubeModel = glm::mat4(1.0f);
-    cubeModel = glm::translate(cubeModel, glm::vec3(0.0f, 1.5f, 0.0f));
-    cubeModel = glm::scale(cubeModel, glm::vec3(0.5f));
-    RenderMesh(*m_LightSourceMesh, *m_ShadowMapShader, cubeModel);
-
-    cubeModel = glm::mat4(1.0f);
-    cubeModel = glm::translate(cubeModel, glm::vec3(2.0f, 0.0f, 1.0f));
-    cubeModel = glm::scale(cubeModel, glm::vec3(0.5f));
-    RenderMesh(*m_LightSourceMesh, *m_ShadowMapShader, cubeModel);
-
-    cubeModel = glm::mat4(1.0f);
-    cubeModel = glm::translate(cubeModel, glm::vec3(-1.0f, 0.0f, 2.0f));
-    cubeModel = glm::rotate(cubeModel, glm::radians(60.0f), glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f)));
-    cubeModel = glm::scale(cubeModel, glm::vec3(0.25f));
-    RenderMesh(*m_LightSourceMesh, *m_ShadowMapShader, cubeModel);
-
-    // Calculate the point lights model matrices and render them
+    // Render the scene from the point of view of each light into the attached depth cubemap
     for (unsigned int i = 0; i < m_PointLightPositions.size(); i++)
     {
+        // Move light position over time
+        m_PointLightPositions[i].x = glm::sin(m_LastFrameTime) * 4.0f;
+        m_PointLightPositions[i].z = glm::cos(m_LastFrameTime) * 3.0f;
+
         glm::mat4 pointLightModel = glm::mat4(1.0f);
-        pointLightModel = glm::translate(pointLightModel, { glm::sin(m_LastFrameTime) * m_PointLightPositions[i].x, m_PointLightPositions[i].y, glm::cos(m_LastFrameTime) * m_PointLightPositions[i].z });
+        pointLightModel = glm::translate(pointLightModel, m_PointLightPositions[i]);
         pointLightModel = glm::scale(pointLightModel, glm::vec3(0.2f)); // Scale down the light source
 
-        m_ShadowMapShader->SetMatrix4f("u_Model", pointLightModel);
+        m_PointShadowMapShader->SetVector3f("u_LightPosition", m_PointLightPositions[i]);
 
-        // Render the light source model
-        m_LightSourceMesh->Draw(*m_ShadowMapShader);
+        m_ShadowTransforms[0] = lightProjection *
+            glm::lookAt(m_PointLightPositions[i], m_PointLightPositions[i] + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+        m_ShadowTransforms[1] = lightProjection *
+            glm::lookAt(m_PointLightPositions[i], m_PointLightPositions[i] + glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+        m_ShadowTransforms[2] = lightProjection *
+            glm::lookAt(m_PointLightPositions[i], m_PointLightPositions[i] + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        m_ShadowTransforms[3] = lightProjection *
+            glm::lookAt(m_PointLightPositions[i], m_PointLightPositions[i] + glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f));
+        m_ShadowTransforms[4] = lightProjection *
+            glm::lookAt(m_PointLightPositions[i], m_PointLightPositions[i] + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+        m_ShadowTransforms[5] = lightProjection *
+            glm::lookAt(m_PointLightPositions[i], m_PointLightPositions[i] + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+
+        for (int j = 0; j < 6; j++)
+        {
+            m_PointShadowMapShader->SetMatrix4f("u_ShadowMatrices[" + std::to_string(j) + "]", m_ShadowTransforms[j]);
+        }
+
+        GLCall(glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT));
+        GLCall(glBindFramebuffer(GL_FRAMEBUFFER, m_DepthMapFramebuffer));
+        GLCall(glClear(GL_DEPTH_BUFFER_BIT));
+
+        m_FloorTexture->Bind();
+
+        // Draw the room cube
+        GLCall(glDisable(GL_CULL_FACE));
+        lightModel = glm::mat4(1.0f);
+        lightModel = glm::scale(lightModel, glm::vec3(5.0f));
+        RenderMesh(*m_LightSourceMesh, *m_PointShadowMapShader, lightModel);
+        GLCall(glEnable(GL_CULL_FACE));
+
+        // Draw the floor
+        //m_PlaneMesh->Draw(*m_PointShadowMapShader);
+
+        // Draw cubes (using bound wood texture)
+        // "m_LightSourceMesh" is just a cube mesh scaled down to display the position of point lights
+        glm::mat4 cubeModel = glm::mat4(1.0f);
+        cubeModel = glm::translate(cubeModel, glm::vec3(0.0f, 1.5f, 0.0f));
+        cubeModel = glm::scale(cubeModel, glm::vec3(0.5f));
+        RenderMesh(*m_LightSourceMesh, *m_PointShadowMapShader, cubeModel);
+
+        cubeModel = glm::mat4(1.0f);
+        cubeModel = glm::translate(cubeModel, glm::vec3(2.0f, 0.0f, 1.0f));
+        cubeModel = glm::scale(cubeModel, glm::vec3(0.5f));
+        RenderMesh(*m_LightSourceMesh, *m_PointShadowMapShader, cubeModel);
+
+        cubeModel = glm::mat4(1.0f);
+        cubeModel = glm::translate(cubeModel, glm::vec3(-1.0f, 0.0f, 2.0f));
+        cubeModel = glm::rotate(cubeModel, glm::radians(60.0f), glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f)));
+        cubeModel = glm::scale(cubeModel, glm::vec3(0.25f));
+        RenderMesh(*m_LightSourceMesh, *m_PointShadowMapShader, cubeModel);
     }
 
     // Second pass, render the scene normally using the generated depth/ shadow map
@@ -437,6 +385,8 @@ void Application::RenderScene()
 
     m_LitShader->Use();
     m_LitShader->SetVector3f("u_ViewPosition", m_Camera.GetWorldPosition());
+    m_LitShader->SetVector3f("u_LightPosition", m_PointLightPositions[0]); // HACK HACK HACK
+    m_LitShader->SetUniformFloat("u_FarPlane", farPlane);
 
     SetLightingUniforms(*m_LitShader);
 
@@ -448,28 +398,24 @@ void Application::RenderScene()
     m_LitShader->SetMatrix4f("u_Projection", projection); // Send the projection matrix to the shader
     m_LitShader->SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
 
-    //model = glm::translate(model, glm::vec3(0.0f, -1.5f, 0.0f));
-    m_LitShader->SetMatrix4f("u_Model", model); // Set the model matrix for the shader
+    m_FloorTexture->Bind();
+    m_DepthCubemap->Bind(1);
 
-    // Shadow casting
-    m_LitShader->SetVector3f("u_LightPosition", m_LightPosition);
-    m_LitShader->SetMatrix4f("u_LightSpace", lightSpaceMatrix);
+    // Draw the room cube
+    GLCall(glDisable(GL_CULL_FACE));
+    m_LitShader->SetUniformInt("u_ReverseNormals", 1);
+    model = glm::mat4(1.0f);
+    model = glm::scale(model, glm::vec3(5.0f));
+    RenderMesh(*m_LightSourceMesh, *m_LitShader, model);
+    m_LitShader->SetUniformInt("u_ReverseNormals", 0);
+    GLCall(glEnable(GL_CULL_FACE));
 
     // Draw the floor
-    m_FloorTexture->Bind();
-    m_DepthMapTexture->Bind(1);
-    m_PlaneMesh->Draw(*m_LitShader);
-
-    // Draw the backpack model
-    //model = glm::mat4(1.0f);
-    //model = glm::translate(model, glm::vec3(0.0f, 0.0f, -6.0f));
-    //m_LitShader->SetMatrix4f("u_Model", model);
-    //m_BackpackModel->Draw(*m_LitShader); // Draw the backpack model with the lit shader
+    //m_PlaneMesh->Draw(*m_LitShader);
 
     // Draw cubes (using bound wood texture)
     // "m_LightSourceMesh" is just a cube mesh scaled down to display the position of point lights
-    m_FloorTexture->Bind();
-    cubeModel = glm::mat4(1.0f);
+    glm::mat4 cubeModel = glm::mat4(1.0f);
     cubeModel = glm::translate(cubeModel, glm::vec3(0.0f, 1.5f, 0.0f));
     cubeModel = glm::scale(cubeModel, glm::vec3(0.5f));
     RenderMesh(*m_LightSourceMesh, *m_LitShader, cubeModel);
@@ -493,7 +439,7 @@ void Application::RenderScene()
     for (unsigned int i = 0; i < m_PointLightPositions.size(); i++)
     {
         glm::mat4 lightModel = glm::mat4(1.0f);
-        lightModel = glm::translate(lightModel, { glm::sin(m_LastFrameTime) * m_PointLightPositions[i].x, m_PointLightPositions[i].y, glm::cos(m_LastFrameTime) * m_PointLightPositions[i].z });
+        lightModel = glm::translate(lightModel, m_PointLightPositions[i]);
         lightModel = glm::scale(lightModel, glm::vec3(0.2f)); // Scale down the light source
 
         m_UnlitShader->SetUniform4f("u_Color", 1.0f, 1.0f, 1.0f, 1.0f);
@@ -519,7 +465,7 @@ void Application::SetLightingUniforms(const Shader& shader)
         std::string pointLightName;
         pointLightName.reserve(48); // Reserve space for the string to avoid reallocations
         pointLightName = "u_PointLights[" + std::to_string(i) + "]";
-        shader.SetVector3f(pointLightName + ".position", { glm::sin(m_LastFrameTime) * m_PointLightPositions[i].x, m_PointLightPositions[i].y, glm::cos(m_LastFrameTime) * m_PointLightPositions[i].z });
+        shader.SetVector3f(pointLightName + ".position", m_PointLightPositions[i]);
         shader.SetUniform4f(pointLightName + ".ambient", 0.05f, 0.05f, 0.05f, 1.0f); // Ambient light color
         shader.SetUniform4f(pointLightName + ".diffuse", 0.8f, 0.8f, 0.8f, 1.0f); // Diffuse light color
         shader.SetUniform4f(pointLightName + ".specular", 1.0f, 1.0f, 1.0f, 1.0f); // Specular light color

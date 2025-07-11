@@ -94,3 +94,49 @@ void Texture::SetData(const void* data, unsigned int internalFormat)
 {
 	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, m_Width, m_Height, 0, internalFormat, GL_UNSIGNED_BYTE, data);
 }
+
+Cubemap::Cubemap(int width, int height)
+	: m_Width(width), m_Height(height)
+{
+    glGenTextures(1, &m_ID);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, m_ID);
+}
+
+Cubemap::~Cubemap()
+{
+    glDeleteTextures(1, &m_ID);
+}
+
+void Cubemap::Bind(unsigned int slot /*= 0*/) const
+{
+    // Bind the texture to the specified slot
+    glActiveTexture(GL_TEXTURE0 + slot);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, m_ID);
+}
+
+void Cubemap::Unbind() const
+{
+    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+}
+
+void Cubemap::SetFilterMode(int mode)
+{
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, mode);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, mode);
+}
+
+void Cubemap::SetWrapMode(int mode)
+{
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, mode);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, mode);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, mode);
+}
+
+void Cubemap::SetData(const void* data, unsigned int internalFormat) const
+{
+	for (unsigned int i = 0; i < 6; i++)
+	{
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, internalFormat,
+            m_Width, m_Height, 0, internalFormat, GL_FLOAT, data);
+	}
+}

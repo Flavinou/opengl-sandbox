@@ -8,20 +8,22 @@ out VS_OUT
 	vec3 FragPos;
 	vec3 Normal;
 	vec2 TexCoords;
-	vec4 FragPosLightSpace;
 } vs_out;
 
 uniform mat4 u_Model;
 uniform mat4 u_View;
 uniform mat4 u_Projection;
-uniform mat4 u_LightSpace;
+
+uniform bool u_ReverseNormals;
 
 void main()
 {
 	vs_out.FragPos = vec3(u_Model * vec4(aPos, 1.0));
-	vs_out.Normal = mat3(transpose(inverse(u_Model))) * aNormal;
+	if (u_ReverseNormals)
+		vs_out.Normal = mat3(transpose(inverse(u_Model))) * (-1.0 * aNormal);
+	else
+		vs_out.Normal = mat3(transpose(inverse(u_Model))) * aNormal;
 	vs_out.TexCoords = aTexCoords;
-	vs_out.FragPosLightSpace = u_LightSpace * vec4(vs_out.FragPos, 1.0);
 
 	gl_Position = u_Projection * u_View * vec4(vs_out.FragPos, 1.0);
 }

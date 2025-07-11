@@ -3,6 +3,7 @@
 #include "Camera.h"
 #include "Model.h"
 #include "Shader.h"
+#include "Texture.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -45,8 +46,9 @@ private:
 	// Resources
 	std::shared_ptr<Shader> m_LitShader;
 	std::shared_ptr<Shader> m_UnlitShader;
-    std::shared_ptr<Shader> m_ShadowMapShader;
-    std::shared_ptr<Shader> m_ScreenShader;
+    //std::shared_ptr<Shader> m_ShadowMapShader;
+	std::shared_ptr<Shader> m_PointShadowMapShader;
+    //std::shared_ptr<Shader> m_ScreenShader;
 
 	std::shared_ptr<Texture> m_FloorTexture;
 
@@ -60,9 +62,11 @@ private:
 	// Utilities
 	std::vector<glm::vec3> m_PointLightPositions;
 
-	glm::vec3 m_LightPosition;
+	//glm::vec3 m_LightPosition;
 
 	// Shadow / depth mapping
 	unsigned int m_DepthMapFramebuffer;
-	std::shared_ptr<Texture> m_DepthMapTexture;
+	glm::mat4 m_ShadowTransforms[6];
+	//std::shared_ptr<Texture> m_DepthMapTexture;
+	std::shared_ptr<Cubemap> m_DepthCubemap;
 };

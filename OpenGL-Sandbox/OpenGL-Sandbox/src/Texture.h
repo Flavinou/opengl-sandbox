@@ -28,3 +28,23 @@ private:
 	int m_Width, m_Height, m_NbChannels;
 	const char* m_FilePath;
 };
+
+class Cubemap
+{
+public:
+	Cubemap(int width, int height);
+    ~Cubemap();
+
+    void Bind(unsigned int slot = 0) const;
+    void Unbind() const;
+
+    unsigned int GetID() const { return m_ID; }
+
+    void SetFilterMode(int mode);
+    void SetWrapMode(int mode);
+
+	void SetData(const void* data, unsigned int internalFormat) const;
+private:
+    unsigned int m_ID;
+	int m_Width, m_Height;
+};
