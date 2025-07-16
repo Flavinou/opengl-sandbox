@@ -21,6 +21,8 @@ const unsigned int SHADOW_HEIGHT = 1024;
 
 // Forward declaration
 void RenderMesh(const AssetLoader::Mesh& mesh, const Shader& shader, const glm::mat4& transform);
+void RenderSimpleMesh(const AssetLoader::SimpleMesh& mesh, const Shader& shader, const glm::mat4& transform);
+std::shared_ptr<AssetLoader::SimpleMesh> CreateQuad();
 
 int main()
 {
@@ -221,7 +223,9 @@ void Application::Initialize()
     };
 
     // Create textures
-    m_FloorTexture = TextureManager::Instance().Get("resources/textures/proto_wall_orange.png");
+    //m_FloorTexture = TextureManager::Instance().Get("resources/textures/proto_wall_orange.png");
+    m_BrickTexture = TextureManager::Instance().Get("resources/textures/brickwall.jpg");
+    m_BrickNormalMap = TextureManager::Instance().Get("resources/textures/brickwall_normal.jpg");
 
 	// Create meshes
     m_PlaneMesh = std::make_shared<AssetLoader::Mesh>(planeVertices, sizeof(planeVertices) / sizeof(planeVertices[0]), 8);
@@ -246,7 +250,11 @@ void Application::Initialize()
     m_LitShader->Use();
     m_LitShader->SetUniformFloat("u_Material.shininess", 64.0f);
     m_LitShader->SetUniformInt("u_Material.texture_diffuse1", 0);
-    m_LitShader->SetUniformInt("u_Material.shadow_map1", 1);
+    m_LitShader->SetUniformInt("u_Material.texture_normal1", 1);
+    m_LitShader->SetUniformInt("u_Material.shadow_map1", 2);
+
+    // Setup quad mesh to render normal map onto
+    m_QuadMesh = CreateQuad();
 }
 
 void Application::Run()
@@ -342,35 +350,42 @@ void Application::RenderScene()
         GLCall(glBindFramebuffer(GL_FRAMEBUFFER, m_DepthMapFramebuffer));
         GLCall(glClear(GL_DEPTH_BUFFER_BIT));
 
-        m_FloorTexture->Bind();
+        //m_FloorTexture->Bind();
+        m_BrickTexture->Bind();
+        m_BrickNormalMap->Bind(1);
+
+        // Draw the main quad using brick texture / normal map
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::rotate(model, glm::radians(m_LastFrameTime * -10.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0))); // rotate the quad to show normal mapping from multiple directions
+        RenderSimpleMesh(*m_QuadMesh, *m_PointShadowMapShader, model);
 
         // Draw the room cube
-        GLCall(glDisable(GL_CULL_FACE));
-        lightModel = glm::mat4(1.0f);
-        lightModel = glm::scale(lightModel, glm::vec3(5.0f));
-        RenderMesh(*m_LightSourceMesh, *m_PointShadowMapShader, lightModel);
-        GLCall(glEnable(GL_CULL_FACE));
+        //GLCall(glDisable(GL_CULL_FACE));
+        //lightModel = glm::mat4(1.0f);
+        //lightModel = glm::scale(lightModel, glm::vec3(5.0f));
+        //RenderMesh(*m_LightSourceMesh, *m_PointShadowMapShader, lightModel);
+        //GLCall(glEnable(GL_CULL_FACE));
 
-        // Draw the floor
-        //m_PlaneMesh->Draw(*m_PointShadowMapShader);
+        //// Draw the floor
+        ////m_PlaneMesh->Draw(*m_PointShadowMapShader);
 
-        // Draw cubes (using bound wood texture)
-        // "m_LightSourceMesh" is just a cube mesh scaled down to display the position of point lights
-        glm::mat4 cubeModel = glm::mat4(1.0f);
-        cubeModel = glm::translate(cubeModel, glm::vec3(0.0f, 1.5f, 0.0f));
-        cubeModel = glm::scale(cubeModel, glm::vec3(0.5f));
-        RenderMesh(*m_LightSourceMesh, *m_PointShadowMapShader, cubeModel);
+        //// Draw cubes (using bound wood texture)
+        //// "m_LightSourceMesh" is just a cube mesh scaled down to display the position of point lights
+        //glm::mat4 cubeModel = glm::mat4(1.0f);
+        //cubeModel = glm::translate(cubeModel, glm::vec3(0.0f, 1.5f, 0.0f));
+        //cubeModel = glm::scale(cubeModel, glm::vec3(0.5f));
+        //RenderMesh(*m_LightSourceMesh, *m_PointShadowMapShader, cubeModel);
 
-        cubeModel = glm::mat4(1.0f);
-        cubeModel = glm::translate(cubeModel, glm::vec3(2.0f, 0.0f, 1.0f));
-        cubeModel = glm::scale(cubeModel, glm::vec3(0.5f));
-        RenderMesh(*m_LightSourceMesh, *m_PointShadowMapShader, cubeModel);
+        //cubeModel = glm::mat4(1.0f);
+        //cubeModel = glm::translate(cubeModel, glm::vec3(2.0f, 0.0f, 1.0f));
+        //cubeModel = glm::scale(cubeModel, glm::vec3(0.5f));
+        //RenderMesh(*m_LightSourceMesh, *m_PointShadowMapShader, cubeModel);
 
-        cubeModel = glm::mat4(1.0f);
-        cubeModel = glm::translate(cubeModel, glm::vec3(-1.0f, 0.0f, 2.0f));
-        cubeModel = glm::rotate(cubeModel, glm::radians(60.0f), glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f)));
-        cubeModel = glm::scale(cubeModel, glm::vec3(0.25f));
-        RenderMesh(*m_LightSourceMesh, *m_PointShadowMapShader, cubeModel);
+        //cubeModel = glm::mat4(1.0f);
+        //cubeModel = glm::translate(cubeModel, glm::vec3(-1.0f, 0.0f, 2.0f));
+        //cubeModel = glm::rotate(cubeModel, glm::radians(60.0f), glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f)));
+        //cubeModel = glm::scale(cubeModel, glm::vec3(0.25f));
+        //RenderMesh(*m_LightSourceMesh, *m_PointShadowMapShader, cubeModel);
     }
 
     // Second pass, render the scene normally using the generated depth/ shadow map
@@ -398,38 +413,45 @@ void Application::RenderScene()
     m_LitShader->SetMatrix4f("u_Projection", projection); // Send the projection matrix to the shader
     m_LitShader->SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
 
-    m_FloorTexture->Bind();
-    m_DepthCubemap->Bind(1);
+    //m_FloorTexture->Bind();
+    m_BrickTexture->Bind();
+    m_BrickNormalMap->Bind(1);
+    m_DepthCubemap->Bind(2);
+
+    // Draw the main quad using brick texture / normal map
+    model = glm::mat4(1.0f);
+    model = glm::rotate(model, glm::radians(m_LastFrameTime * -10.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0))); // rotate the quad to show normal mapping from multiple directions
+    RenderSimpleMesh(*m_QuadMesh, *m_LitShader, model);
 
     // Draw the room cube
-    GLCall(glDisable(GL_CULL_FACE));
-    m_LitShader->SetUniformInt("u_ReverseNormals", 1);
-    model = glm::mat4(1.0f);
-    model = glm::scale(model, glm::vec3(5.0f));
-    RenderMesh(*m_LightSourceMesh, *m_LitShader, model);
-    m_LitShader->SetUniformInt("u_ReverseNormals", 0);
-    GLCall(glEnable(GL_CULL_FACE));
-
-    // Draw the floor
-    //m_PlaneMesh->Draw(*m_LitShader);
-
-    // Draw cubes (using bound wood texture)
-    // "m_LightSourceMesh" is just a cube mesh scaled down to display the position of point lights
-    glm::mat4 cubeModel = glm::mat4(1.0f);
-    cubeModel = glm::translate(cubeModel, glm::vec3(0.0f, 1.5f, 0.0f));
-    cubeModel = glm::scale(cubeModel, glm::vec3(0.5f));
-    RenderMesh(*m_LightSourceMesh, *m_LitShader, cubeModel);
-
-    cubeModel = glm::mat4(1.0f);
-    cubeModel = glm::translate(cubeModel, glm::vec3(2.0f, 0.0f, 1.0f));
-    cubeModel = glm::scale(cubeModel, glm::vec3(0.5f));
-    RenderMesh(*m_LightSourceMesh, *m_LitShader, cubeModel);
-
-    cubeModel = glm::mat4(1.0f);
-    cubeModel = glm::translate(cubeModel, glm::vec3(-1.0f, 0.0f, 2.0f));
-    cubeModel = glm::rotate(cubeModel, glm::radians(60.0f), glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f)));
-    cubeModel = glm::scale(cubeModel, glm::vec3(0.25f));
-    RenderMesh(*m_LightSourceMesh, *m_LitShader, cubeModel);
+    //GLCall(glDisable(GL_CULL_FACE));
+    //m_LitShader->SetUniformInt("u_ReverseNormals", 1);
+    //model = glm::mat4(1.0f);
+    //model = glm::scale(model, glm::vec3(5.0f));
+    //RenderMesh(*m_LightSourceMesh, *m_LitShader, model);
+    //m_LitShader->SetUniformInt("u_ReverseNormals", 0);
+    //GLCall(glEnable(GL_CULL_FACE));
+    //
+    //// Draw the floor
+    ////m_PlaneMesh->Draw(*m_LitShader);
+    //
+    //// Draw cubes (using bound wood texture)
+    //// "m_LightSourceMesh" is just a cube mesh scaled down to display the position of point lights
+    //glm::mat4 cubeModel = glm::mat4(1.0f);
+    //cubeModel = glm::translate(cubeModel, glm::vec3(0.0f, 1.5f, 0.0f));
+    //cubeModel = glm::scale(cubeModel, glm::vec3(0.5f));
+    //RenderMesh(*m_LightSourceMesh, *m_LitShader, cubeModel);
+    //
+    //cubeModel = glm::mat4(1.0f);
+    //cubeModel = glm::translate(cubeModel, glm::vec3(2.0f, 0.0f, 1.0f));
+    //cubeModel = glm::scale(cubeModel, glm::vec3(0.5f));
+    //RenderMesh(*m_LightSourceMesh, *m_LitShader, cubeModel);
+    //
+    //cubeModel = glm::mat4(1.0f);
+    //cubeModel = glm::translate(cubeModel, glm::vec3(-1.0f, 0.0f, 2.0f));
+    //cubeModel = glm::rotate(cubeModel, glm::radians(60.0f), glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f)));
+    //cubeModel = glm::scale(cubeModel, glm::vec3(0.25f));
+    //RenderMesh(*m_LightSourceMesh, *m_LitShader, cubeModel);
 
     m_UnlitShader->Use();
     m_UnlitShader->SetMatrix4f("u_Projection", projection); // Send the projection matrix to the shader
@@ -459,7 +481,7 @@ void Application::SetLightingUniforms(const Shader& shader)
     shader.SetUniform4f("u_DirectionalLight.specular", 0.5f, 0.5f, 0.5f, 1.0f);
 
     // Update the point light uniforms
-    const glm::vec3 pointLightAttenuationFactors{ 1.0f, 0.09f, 0.032f }; // Constant, linear and quadratic attenuation factors
+    const glm::vec3 pointLightAttenuationFactors{ 1.0f, 0.0f, 0.0f/*0.09f, 0.032f*/ }; // Constant, linear and quadratic attenuation factors
     for (unsigned int i = 0; i < m_PointLightPositions.size(); i++)
     {
         std::string pointLightName;
@@ -494,4 +516,84 @@ void RenderMesh(const AssetLoader::Mesh& mesh, const Shader& shader, const glm::
 {
     shader.SetMatrix4f("u_Model", transform);
     mesh.Draw(shader);
+}
+
+void RenderSimpleMesh(const AssetLoader::SimpleMesh& mesh, const Shader& shader, const glm::mat4& transform)
+{
+    shader.SetMatrix4f("u_Model", transform);
+    mesh.Draw();
+}
+
+std::shared_ptr<AssetLoader::SimpleMesh> CreateQuad()
+{
+    // positions
+    glm::vec3 pos1(-1.0, 1.0, 0.0);
+    glm::vec3 pos2(-1.0, -1.0, 0.0);
+    glm::vec3 pos3(1.0, -1.0, 0.0);
+    glm::vec3 pos4(1.0, 1.0, 0.0);
+    // texture coordinates
+    glm::vec2 uv1(0.0, 1.0);
+    glm::vec2 uv2(0.0, 0.0);
+    glm::vec2 uv3(1.0, 0.0);
+    glm::vec2 uv4(1.0, 1.0);
+    // normal vector
+    glm::vec3 nm(0.0, 0.0, 1.0);
+
+    glm::vec3 edge1 = pos2 - pos1;
+    glm::vec3 edge2 = pos3 - pos1;
+    glm::vec2 deltaUV1 = uv2 - uv1;
+    glm::vec2 deltaUV2 = uv3 - uv1;
+
+    float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+
+    glm::vec3 tangent1, bitangent1;
+    glm::vec3 tangent2, bitangent2;
+
+    // triangle 1
+    tangent1.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
+    tangent1.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
+    tangent1.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
+
+    bitangent1.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
+    bitangent1.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
+    bitangent1.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
+
+    // triangle 2
+    edge1 = pos3 - pos1;
+    edge2 = pos4 - pos1;
+    deltaUV1 = uv3 - uv1;
+    deltaUV2 = uv4 - uv1;
+
+    f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+
+    tangent2.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
+    tangent2.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
+    tangent2.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
+
+    bitangent2.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
+    bitangent2.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
+    bitangent2.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
+
+    float quadVertices[] = {
+        // positions            // normal         // texcoords  // tangent                          // bitangent
+        pos1.x, pos1.y, pos1.z, nm.x, nm.y, nm.z, uv1.x, uv1.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
+        pos2.x, pos2.y, pos2.z, nm.x, nm.y, nm.z, uv2.x, uv2.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
+        pos3.x, pos3.y, pos3.z, nm.x, nm.y, nm.z, uv3.x, uv3.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
+
+        pos1.x, pos1.y, pos1.z, nm.x, nm.y, nm.z, uv1.x, uv1.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z,
+        pos3.x, pos3.y, pos3.z, nm.x, nm.y, nm.z, uv3.x, uv3.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z,
+        pos4.x, pos4.y, pos4.z, nm.x, nm.y, nm.z, uv4.x, uv4.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z
+    };
+
+    const int stride = 14 * sizeof(float);
+    int size = sizeof(quadVertices);
+    int count = size / stride;
+    std::shared_ptr<AssetLoader::SimpleMesh> simpleMesh = std::make_shared<AssetLoader::SimpleMesh>(quadVertices, size, count);
+    simpleMesh->SetVertexAttribute(0, 3, GL_FLOAT, false, stride, nullptr);
+    simpleMesh->SetVertexAttribute(1, 3, GL_FLOAT, false, stride, (void*)(3 * sizeof(float)));
+    simpleMesh->SetVertexAttribute(2, 2, GL_FLOAT, false, stride, (void*)(6 * sizeof(float)));
+    simpleMesh->SetVertexAttribute(3, 3, GL_FLOAT, false, stride, (void*)(8 * sizeof(float)));
+    simpleMesh->SetVertexAttribute(4, 3, GL_FLOAT, false, stride, (void*)(11 * sizeof(float)));
+
+    return simpleMesh;
 }

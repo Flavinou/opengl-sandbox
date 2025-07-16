@@ -50,13 +50,18 @@ private:
 	std::shared_ptr<Shader> m_PointShadowMapShader;
     //std::shared_ptr<Shader> m_ScreenShader;
 
-	std::shared_ptr<Texture> m_FloorTexture;
+	//std::shared_ptr<Texture> m_FloorTexture;
+
+	// Normal mapping
+	std::shared_ptr<Texture> m_BrickTexture;
+	std::shared_ptr<Texture> m_BrickNormalMap;
 
 	std::shared_ptr<AssetLoader::Model> m_BackpackModel;
 
 	std::shared_ptr<AssetLoader::Mesh> m_PlaneMesh;
 	std::shared_ptr<AssetLoader::Mesh> m_LightSourceMesh;
 
+	std::shared_ptr<AssetLoader::SimpleMesh> m_QuadMesh;
     std::shared_ptr<AssetLoader::SimpleMesh> m_ScreenQuadMesh;
 
 	// Utilities
