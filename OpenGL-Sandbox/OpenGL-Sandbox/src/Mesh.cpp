@@ -129,5 +129,13 @@ namespace AssetLoader
         glDrawArrays(GL_TRIANGLES, 0, m_Count);
         glBindVertexArray(0); // Unbind VAO
     }
+
+    void SimpleMesh::Draw(unsigned int mode, int count) const
+    {
+        // Draw mesh
+        glBindVertexArray(m_VAO);
+        glDrawArrays(mode, 0, count);
+        glBindVertexArray(0); // Unbind VAO
+    }
 }
 

@@ -166,6 +166,10 @@
     <None Include="resources\shaders\DebugQuadDepthFragment.glsl" />
     <None Include="resources\shaders\DebugQuadVertex.glsl" />
     <None Include="resources\shaders\DirectionalLightFragment.glsl" />
+    <None Include="resources\shaders\HDRFragment.glsl" />
+    <None Include="resources\shaders\HDRVertex.glsl" />
+    <None Include="resources\shaders\LightingFragment.glsl" />
+    <None Include="resources\shaders\LightingVertex.glsl" />
     <None Include="resources\shaders\LitFragment.glsl" />
     <None Include="resources\shaders\PointLightFragment.glsl" />
     <None Include="resources\shaders\PointShadowMappingFragment.glsl" />

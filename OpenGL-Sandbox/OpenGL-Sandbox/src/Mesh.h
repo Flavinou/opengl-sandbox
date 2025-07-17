@@ -54,6 +54,7 @@ namespace AssetLoader
         void SetVertexAttribute(unsigned int index, unsigned int size, unsigned int type, bool normalized, unsigned int stride, const void* pointer) const;
 
         void Draw() const;
+		void Draw(unsigned int mode, int count) const;
     private:
         unsigned int m_VAO, m_VBO; // Vertex Array Object and Vertex Buffer Object IDs
 

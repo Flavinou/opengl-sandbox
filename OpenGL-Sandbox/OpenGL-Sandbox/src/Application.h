@@ -46,32 +46,24 @@ private:
 	// Resources
 	std::shared_ptr<Shader> m_LitShader;
 	std::shared_ptr<Shader> m_UnlitShader;
-    //std::shared_ptr<Shader> m_ShadowMapShader;
-	std::shared_ptr<Shader> m_PointShadowMapShader;
-    //std::shared_ptr<Shader> m_ScreenShader;
-
-	//std::shared_ptr<Texture> m_FloorTexture;
+	std::shared_ptr<Shader> m_HDRShader;
 
 	// Normal mapping
-	std::shared_ptr<Texture> m_BrickTexture;
-	std::shared_ptr<Texture> m_BrickNormalMap;
-
 	std::shared_ptr<AssetLoader::Model> m_BackpackModel;
 
-	std::shared_ptr<AssetLoader::Mesh> m_PlaneMesh;
-	std::shared_ptr<AssetLoader::Mesh> m_LightSourceMesh;
-
+	std::shared_ptr<AssetLoader::SimpleMesh> m_CubeMesh;
 	std::shared_ptr<AssetLoader::SimpleMesh> m_QuadMesh;
-    std::shared_ptr<AssetLoader::SimpleMesh> m_ScreenQuadMesh;
+
+	// HDR / Tone mapping
+	unsigned int m_HDRFramebuffer, m_HDRDepthBuffer;
+	std::shared_ptr<Texture> m_HDRColorBuffer;
+
+	std::shared_ptr<Texture> m_ToonWoodTexture;
+
+	bool m_UseHDR = true;
+	bool m_HDRKeyPressed = false;
+	float m_Exposure = 1.0f;
 
 	// Utilities
-	std::vector<glm::vec3> m_PointLightPositions;
-
-	//glm::vec3 m_LightPosition;
-
-	// Shadow / depth mapping
-	unsigned int m_DepthMapFramebuffer;
-	glm::mat4 m_ShadowTransforms[6];
-	//std::shared_ptr<Texture> m_DepthMapTexture;
-	std::shared_ptr<Cubemap> m_DepthCubemap;
+	std::vector<glm::vec3> m_PointLightColors, m_PointLightPositions;
 };

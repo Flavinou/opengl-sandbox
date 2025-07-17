@@ -23,6 +23,7 @@ const unsigned int SHADOW_HEIGHT = 1024;
 void RenderMesh(const AssetLoader::Mesh& mesh, const Shader& shader, const glm::mat4& transform);
 void RenderSimpleMesh(const AssetLoader::SimpleMesh& mesh, const Shader& shader, const glm::mat4& transform);
 std::shared_ptr<AssetLoader::SimpleMesh> CreateQuad();
+std::shared_ptr<AssetLoader::SimpleMesh> CreateCube();
 
 int main()
 {
@@ -131,7 +132,8 @@ Application::Application(int viewportWidth, int viewportHeight, const Camera& ca
 
 Application::~Application()
 {
-    glDeleteFramebuffers(1, &m_DepthMapFramebuffer);
+    glDeleteFramebuffers(1, &m_HDRFramebuffer);
+    glDeleteRenderbuffers(1, &m_HDRDepthBuffer);
 
     // Cleanup GLFW resources
     if (m_Window)
@@ -145,15 +147,15 @@ Application::~Application()
 void Application::Initialize()
 {
     GLCall(glEnable(GL_DEPTH_TEST));
-    GLCall(glEnable(GL_CULL_FACE));
+    //GLCall(glEnable(GL_CULL_FACE));
 
     // Create shaders
+    //m_UnlitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/UnlitFragment.glsl");
     m_LitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/LitFragment.glsl");
-    m_UnlitShader = std::make_shared<Shader>("resources/shaders/Vertex.glsl", "resources/shaders/UnlitFragment.glsl");
-    m_PointShadowMapShader = std::make_shared<Shader>("resources/shaders/PointShadowMappingVertex.glsl", "resources/shaders/PointShadowMappingFragment.glsl", "resources/shaders/PointShadowMappingGeometry.glsl");
+    m_HDRShader = std::make_shared<Shader>("resources/shaders/HDRVertex.glsl", "resources/shaders/HDRFragment.glsl");
 
     // Create model
-    m_BackpackModel = std::make_shared<AssetLoader::Model>("resources/models/backpack/backpack.obj");
+    //m_BackpackModel = std::make_shared<AssetLoader::Model>("resources/models/backpack/backpack.obj");
 
 	// Create light source mesh
     float cubeVertices[] = {
@@ -214,47 +216,60 @@ void Application::Initialize()
          25.0f, -0.5f, -25.0f,    0.0f, 1.0f, 0.0f,   25.0f, 25.0f
     };
 
+    // Light colors
+    m_PointLightColors =
+    {
+        glm::vec3(200.0f, 200.0f, 200.0f),
+        glm::vec3(0.1f, 0.0f, 0.0f),
+        glm::vec3(0.0f, 0.0f, 0.2f),
+        glm::vec3(0.0f, 0.1f, 0.0f)
+    };
+
     m_PointLightPositions =
     {
-        //glm::vec3(0.7f, 0.2f, 2.0f),
-        //glm::vec3(2.3f, -3.3f, -4.0f),
-        glm::vec3(-4.0f, 2.0f, -2.5f),
-        //glm::vec3(0.0f, 0.0f, -3.0f)
+        glm::vec3(0.0f,  0.0f, 49.5f), // back light
+        glm::vec3(-1.4f, -1.9f, 9.0f),
+        glm::vec3(0.0f, -1.8f, 4.0f),
+        glm::vec3(0.8f, -1.7f, 6.0f)
     };
 
     // Create textures
-    //m_FloorTexture = TextureManager::Instance().Get("resources/textures/proto_wall_orange.png");
-    m_BrickTexture = TextureManager::Instance().Get("resources/textures/brickwall.jpg");
-    m_BrickNormalMap = TextureManager::Instance().Get("resources/textures/brickwall_normal.jpg");
+    m_ToonWoodTexture = TextureManager::Instance().Get("resources/textures/toon_wood.jpg", true);
 
 	// Create meshes
-    m_PlaneMesh = std::make_shared<AssetLoader::Mesh>(planeVertices, sizeof(planeVertices) / sizeof(planeVertices[0]), 8);
-    m_LightSourceMesh = std::make_shared<AssetLoader::Mesh>(cubeVertices, sizeof(cubeVertices) / sizeof(cubeVertices[0]), 8);
+    m_QuadMesh = CreateQuad();
+    m_CubeMesh = CreateCube();
 
-    // Create shadow / depth map framebuffer
-    GLCall(glGenFramebuffers(1, &m_DepthMapFramebuffer));
+    // Create HDR framebuffer
+    GLCall(glGenFramebuffers(1, &m_HDRFramebuffer));
 
-    m_DepthCubemap = std::make_shared<Cubemap>(SHADOW_WIDTH, SHADOW_HEIGHT);
-    m_DepthCubemap->SetData(nullptr, GL_DEPTH_COMPONENT);
-    m_DepthCubemap->SetFilterMode(GL_NEAREST);
-    m_DepthCubemap->SetWrapMode(GL_CLAMP_TO_EDGE);
+    // Create HDR color buffer
+    m_HDRColorBuffer = std::make_shared<Texture>(m_ViewportWidth, m_ViewportHeight);
+    m_HDRColorBuffer->SetData(nullptr, GL_RGBA16F, GL_RGBA, GL_FLOAT);
+    m_HDRColorBuffer->SetFilterMode(GL_LINEAR);
 
-    // Attach depth texture to shadow map framebuffer
-    GLCall(glBindFramebuffer(GL_FRAMEBUFFER, m_DepthMapFramebuffer));
-    GLCall(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, m_DepthCubemap->GetID(), 0));
-    GLCall(glDrawBuffer(GL_NONE));
-    GLCall(glReadBuffer(GL_NONE));
+    // Create HDR depth buffer
+    GLCall(glGenRenderbuffers(1, &m_HDRDepthBuffer));
+    GLCall(glBindRenderbuffer(GL_RENDERBUFFER, m_HDRDepthBuffer));
+    GLCall(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, m_ViewportWidth, m_ViewportHeight));
+
+    // Attach the HDR color buffer and depth buffer to the HDR framebuffer
+    GLCall(glBindFramebuffer(GL_FRAMEBUFFER, m_HDRFramebuffer));
+    GLCall(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_HDRColorBuffer->GetID(), 0));
+    GLCall(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_HDRDepthBuffer));
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "Framebuffer not complete!" << std::endl;
+
     GLCall(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
     // Bind the lit shader first to set the material shininess which is not meant to change
     m_LitShader->Use();
-    m_LitShader->SetUniformFloat("u_Material.shininess", 64.0f);
+    m_LitShader->SetUniformFloat("u_Material.shininess", 32.0f);
     m_LitShader->SetUniformInt("u_Material.texture_diffuse1", 0);
-    m_LitShader->SetUniformInt("u_Material.texture_normal1", 1);
-    m_LitShader->SetUniformInt("u_Material.shadow_map1", 2);
 
-    // Setup quad mesh to render normal map onto
-    m_QuadMesh = CreateQuad();
+    // Bind the HDR shader to setup texture slot
+    m_HDRShader->Use();
+    m_HDRShader->SetUniformInt("u_HDRTexture", 0);
 }
 
 void Application::Run()
@@ -271,6 +286,9 @@ void Application::Run()
 
         // Render the scene
         RenderScene();
+        
+        // Log HDR parameters
+        std::cout << (m_UseHDR ? "HDR enabled." : "HDR disabled.") << " | Exposure : " << m_Exposure << std::endl;
 
 		// Swap buffers and poll events
         glfwSwapBuffers(m_Window);
@@ -296,112 +314,46 @@ void Application::ProcessInput()
         m_Camera.OnKeyPressed(m_DeltaTime, CameraMovement::LEFT);
     if (glfwGetKey(m_Window, GLFW_KEY_D) == GLFW_PRESS)
         m_Camera.OnKeyPressed(m_DeltaTime, CameraMovement::RIGHT);
+
+    // HDR input
+    if (glfwGetKey(m_Window, GLFW_KEY_SPACE) == GLFW_PRESS && !m_HDRKeyPressed)
+    {
+        m_UseHDR = !m_UseHDR;
+        m_HDRKeyPressed = true;
+    }
+    if (glfwGetKey(m_Window, GLFW_KEY_SPACE) == GLFW_RELEASE)
+    {
+        m_HDRKeyPressed = false;
+    }
+
+    if (glfwGetKey(m_Window, GLFW_KEY_Q) == GLFW_PRESS)
+    {
+        if (m_Exposure > 0.0f)
+            m_Exposure -= 0.001f;
+        else
+            m_Exposure = 0.0f;
+    }
+    else if (glfwGetKey(m_Window, GLFW_KEY_E) == GLFW_PRESS)
+    {
+        m_Exposure += 0.001f;
+    }
 }
 
 void Application::RenderScene()
 {
-    // Rendering anything happens here
-    GLCall(glClearColor(0.15f, 0.15f, 0.15f, 1.0f));
-    GLCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
-
     // Wireframe mode
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    
-    // First pass, render to depth / shadow map (from light position perspective)
-    const float nearPlane = 1.0f, farPlane = 25.0f;
-    glm::mat4 lightProjection = glm::perspective(glm::radians(90.0f), (float)SHADOW_WIDTH / (float)SHADOW_HEIGHT, nearPlane, farPlane);
-    glm::mat4 lightModel = glm::mat4(1.0f);
 
-    m_PointShadowMapShader->Use();
-    m_PointShadowMapShader->SetUniformFloat("u_FarPlane", farPlane);
-
-    // Render the scene from the point of view of each light into the attached depth cubemap
-    for (unsigned int i = 0; i < m_PointLightPositions.size(); i++)
-    {
-        // Move light position over time
-        m_PointLightPositions[i].x = glm::sin(m_LastFrameTime) * 4.0f;
-        m_PointLightPositions[i].z = glm::cos(m_LastFrameTime) * 3.0f;
-
-        glm::mat4 pointLightModel = glm::mat4(1.0f);
-        pointLightModel = glm::translate(pointLightModel, m_PointLightPositions[i]);
-        pointLightModel = glm::scale(pointLightModel, glm::vec3(0.2f)); // Scale down the light source
-
-        m_PointShadowMapShader->SetVector3f("u_LightPosition", m_PointLightPositions[i]);
-
-        m_ShadowTransforms[0] = lightProjection *
-            glm::lookAt(m_PointLightPositions[i], m_PointLightPositions[i] + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-        m_ShadowTransforms[1] = lightProjection *
-            glm::lookAt(m_PointLightPositions[i], m_PointLightPositions[i] + glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-        m_ShadowTransforms[2] = lightProjection *
-            glm::lookAt(m_PointLightPositions[i], m_PointLightPositions[i] + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        m_ShadowTransforms[3] = lightProjection *
-            glm::lookAt(m_PointLightPositions[i], m_PointLightPositions[i] + glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f));
-        m_ShadowTransforms[4] = lightProjection *
-            glm::lookAt(m_PointLightPositions[i], m_PointLightPositions[i] + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-        m_ShadowTransforms[5] = lightProjection *
-            glm::lookAt(m_PointLightPositions[i], m_PointLightPositions[i] + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-
-        for (int j = 0; j < 6; j++)
-        {
-            m_PointShadowMapShader->SetMatrix4f("u_ShadowMatrices[" + std::to_string(j) + "]", m_ShadowTransforms[j]);
-        }
-
-        GLCall(glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT));
-        GLCall(glBindFramebuffer(GL_FRAMEBUFFER, m_DepthMapFramebuffer));
-        GLCall(glClear(GL_DEPTH_BUFFER_BIT));
-
-        //m_FloorTexture->Bind();
-        m_BrickTexture->Bind();
-        m_BrickNormalMap->Bind(1);
-
-        // Draw the main quad using brick texture / normal map
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::rotate(model, glm::radians(m_LastFrameTime * -10.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0))); // rotate the quad to show normal mapping from multiple directions
-        RenderSimpleMesh(*m_QuadMesh, *m_PointShadowMapShader, model);
-
-        // Draw the room cube
-        //GLCall(glDisable(GL_CULL_FACE));
-        //lightModel = glm::mat4(1.0f);
-        //lightModel = glm::scale(lightModel, glm::vec3(5.0f));
-        //RenderMesh(*m_LightSourceMesh, *m_PointShadowMapShader, lightModel);
-        //GLCall(glEnable(GL_CULL_FACE));
-
-        //// Draw the floor
-        ////m_PlaneMesh->Draw(*m_PointShadowMapShader);
-
-        //// Draw cubes (using bound wood texture)
-        //// "m_LightSourceMesh" is just a cube mesh scaled down to display the position of point lights
-        //glm::mat4 cubeModel = glm::mat4(1.0f);
-        //cubeModel = glm::translate(cubeModel, glm::vec3(0.0f, 1.5f, 0.0f));
-        //cubeModel = glm::scale(cubeModel, glm::vec3(0.5f));
-        //RenderMesh(*m_LightSourceMesh, *m_PointShadowMapShader, cubeModel);
-
-        //cubeModel = glm::mat4(1.0f);
-        //cubeModel = glm::translate(cubeModel, glm::vec3(2.0f, 0.0f, 1.0f));
-        //cubeModel = glm::scale(cubeModel, glm::vec3(0.5f));
-        //RenderMesh(*m_LightSourceMesh, *m_PointShadowMapShader, cubeModel);
-
-        //cubeModel = glm::mat4(1.0f);
-        //cubeModel = glm::translate(cubeModel, glm::vec3(-1.0f, 0.0f, 2.0f));
-        //cubeModel = glm::rotate(cubeModel, glm::radians(60.0f), glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f)));
-        //cubeModel = glm::scale(cubeModel, glm::vec3(0.25f));
-        //RenderMesh(*m_LightSourceMesh, *m_PointShadowMapShader, cubeModel);
-    }
-
-    // Second pass, render the scene normally using the generated depth/ shadow map
-    // Reset viewport
-    GLCall(glBindFramebuffer(GL_FRAMEBUFFER, 0));
     GLCall(glViewport(0, 0, m_ViewportWidth, m_ViewportHeight));
     GLCall(glClearColor(0.15f, 0.15f, 0.15f, 1.0f));
     GLCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
-    // Wireframe mode
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    // First pass, render the (lit) scene to the HDR framebuffer
+    GLCall(glBindFramebuffer(GL_FRAMEBUFFER, m_HDRFramebuffer));
+    GLCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
     m_LitShader->Use();
     m_LitShader->SetVector3f("u_ViewPosition", m_Camera.GetWorldPosition());
-    m_LitShader->SetVector3f("u_LightPosition", m_PointLightPositions[0]); // HACK HACK HACK
-    m_LitShader->SetUniformFloat("u_FarPlane", farPlane);
 
     SetLightingUniforms(*m_LitShader);
 
@@ -413,103 +365,53 @@ void Application::RenderScene()
     m_LitShader->SetMatrix4f("u_Projection", projection); // Send the projection matrix to the shader
     m_LitShader->SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
 
-    //m_FloorTexture->Bind();
-    m_BrickTexture->Bind();
-    m_BrickNormalMap->Bind(1);
-    m_DepthCubemap->Bind(2);
+    // Inverse normals inside the tunnel
+    m_LitShader->SetUniformBool("u_ReverseNormals", true);
 
-    // Draw the main quad using brick texture / normal map
-    model = glm::mat4(1.0f);
-    model = glm::rotate(model, glm::radians(m_LastFrameTime * -10.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0))); // rotate the quad to show normal mapping from multiple directions
-    RenderSimpleMesh(*m_QuadMesh, *m_LitShader, model);
+    // First pass, draw the tunnel (lit scene)
+    m_ToonWoodTexture->Bind();
 
-    // Draw the room cube
-    //GLCall(glDisable(GL_CULL_FACE));
-    //m_LitShader->SetUniformInt("u_ReverseNormals", 1);
-    //model = glm::mat4(1.0f);
-    //model = glm::scale(model, glm::vec3(5.0f));
-    //RenderMesh(*m_LightSourceMesh, *m_LitShader, model);
-    //m_LitShader->SetUniformInt("u_ReverseNormals", 0);
-    //GLCall(glEnable(GL_CULL_FACE));
-    //
-    //// Draw the floor
-    ////m_PlaneMesh->Draw(*m_LitShader);
-    //
-    //// Draw cubes (using bound wood texture)
-    //// "m_LightSourceMesh" is just a cube mesh scaled down to display the position of point lights
-    //glm::mat4 cubeModel = glm::mat4(1.0f);
-    //cubeModel = glm::translate(cubeModel, glm::vec3(0.0f, 1.5f, 0.0f));
-    //cubeModel = glm::scale(cubeModel, glm::vec3(0.5f));
-    //RenderMesh(*m_LightSourceMesh, *m_LitShader, cubeModel);
-    //
-    //cubeModel = glm::mat4(1.0f);
-    //cubeModel = glm::translate(cubeModel, glm::vec3(2.0f, 0.0f, 1.0f));
-    //cubeModel = glm::scale(cubeModel, glm::vec3(0.5f));
-    //RenderMesh(*m_LightSourceMesh, *m_LitShader, cubeModel);
-    //
-    //cubeModel = glm::mat4(1.0f);
-    //cubeModel = glm::translate(cubeModel, glm::vec3(-1.0f, 0.0f, 2.0f));
-    //cubeModel = glm::rotate(cubeModel, glm::radians(60.0f), glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f)));
-    //cubeModel = glm::scale(cubeModel, glm::vec3(0.25f));
-    //RenderMesh(*m_LightSourceMesh, *m_LitShader, cubeModel);
+    model = glm::translate(model, glm::vec3(0.0f, 0.0f, 25.0f));
+    model = glm::scale(model, glm::vec3(2.5f, 2.5f, 25.0f));
+    RenderSimpleMesh(*m_CubeMesh, *m_LitShader, model);
 
-    m_UnlitShader->Use();
-    m_UnlitShader->SetMatrix4f("u_Projection", projection); // Send the projection matrix to the shader
-    m_UnlitShader->SetMatrix4f("u_View", view); // Pass the camera view matrix to the shader
+    // Second pass, render HDR color buffer to 2D screen-filling quad with tone mapping shader
+    GLCall(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+    GLCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
-    // Calculate the point lights model matrices and render them
-    for (unsigned int i = 0; i < m_PointLightPositions.size(); i++)
-    {
-        glm::mat4 lightModel = glm::mat4(1.0f);
-        lightModel = glm::translate(lightModel, m_PointLightPositions[i]);
-        lightModel = glm::scale(lightModel, glm::vec3(0.2f)); // Scale down the light source
+    m_HDRShader->Use();
+    m_HDRShader->SetUniformFloat("u_Exposure", m_Exposure);
+    m_HDRShader->SetUniformBool("u_UseHDR", m_UseHDR);
 
-        m_UnlitShader->SetUniform4f("u_Color", 1.0f, 1.0f, 1.0f, 1.0f);
-        m_UnlitShader->SetMatrix4f("u_Model", lightModel);
-
-        // Render the light source model
-        m_LightSourceMesh->Draw(*m_UnlitShader);
-    }
+    m_HDRColorBuffer->Bind();
+    m_QuadMesh->Draw();
 }
 
 void Application::SetLightingUniforms(const Shader& shader)
 {
     // Update the directional light uniforms
-    shader.SetUniform3f("u_DirectionalLight.direction", -0.2f, -1.0f, -0.3f); // Directional light pointing downwards
-    shader.SetUniform4f("u_DirectionalLight.ambient", 0.2f, 0.2f, 0.2f, 1.0f);
-    shader.SetUniform4f("u_DirectionalLight.diffuse", 0.8f, 0.8f, 0.8f, 1.0f);
-    shader.SetUniform4f("u_DirectionalLight.specular", 0.5f, 0.5f, 0.5f, 1.0f);
+    //shader.SetUniform3f("u_DirectionalLight.direction", -0.2f, -1.0f, -0.3f); // Directional light pointing downwards
+    //shader.SetUniform4f("u_DirectionalLight.ambient", 0.2f, 0.2f, 0.2f, 1.0f);
+    //shader.SetUniform4f("u_DirectionalLight.diffuse", 0.8f, 0.8f, 0.8f, 1.0f);
+    //shader.SetUniform4f("u_DirectionalLight.specular", 0.5f, 0.5f, 0.5f, 1.0f);
 
     // Update the point light uniforms
-    const glm::vec3 pointLightAttenuationFactors{ 1.0f, 0.0f, 0.0f/*0.09f, 0.032f*/ }; // Constant, linear and quadratic attenuation factors
+    const glm::vec3 pointLightAttenuationFactors{ 0.0f, 0.09f, 0.87f }; // Constant, linear and quadratic attenuation factors
     for (unsigned int i = 0; i < m_PointLightPositions.size(); i++)
     {
         std::string pointLightName;
         pointLightName.reserve(48); // Reserve space for the string to avoid reallocations
         pointLightName = "u_PointLights[" + std::to_string(i) + "]";
         shader.SetVector3f(pointLightName + ".position", m_PointLightPositions[i]);
-        shader.SetUniform4f(pointLightName + ".ambient", 0.05f, 0.05f, 0.05f, 1.0f); // Ambient light color
-        shader.SetUniform4f(pointLightName + ".diffuse", 0.8f, 0.8f, 0.8f, 1.0f); // Diffuse light color
-        shader.SetUniform4f(pointLightName + ".specular", 1.0f, 1.0f, 1.0f, 1.0f); // Specular light color
+        shader.SetVector3f(pointLightName + ".ambient", glm::vec3(0.0f)); // Ambient light color
+        shader.SetVector3f(pointLightName + ".diffuse", m_PointLightColors[i]); // Diffuse light color
+        shader.SetVector3f(pointLightName + ".specular", m_PointLightColors[i]); // Specular light color
 
-        // We want the point light to cover a distance of 50 units, so we set the attenuation factors accordingly
+        // We want the point light to cover a distance of ~50 units~ maximum a few units, so we set the attenuation factors accordingly
         shader.SetUniformFloat(pointLightName + ".constant", pointLightAttenuationFactors.x);
         shader.SetUniformFloat(pointLightName + ".linear", pointLightAttenuationFactors.y);
         shader.SetUniformFloat(pointLightName + ".quadratic", pointLightAttenuationFactors.z);
     }
-
-    // Update the spot light uniforms
-    // The spot light is the camera itself, so we set its position to the camera's world position
-    shader.SetVector3f("u_SpotLight.position", m_Camera.GetWorldPosition()); // Position of the spot light
-    shader.SetVector3f("u_SpotLight.direction", m_Camera.GetForwardDirection()); // Direction of the spot light
-    shader.SetUniform4f("u_SpotLight.ambient", 0.0f, 0.0f, 0.0f, 1.0f); // Ambient light color
-    shader.SetUniform4f("u_SpotLight.diffuse", 1.0f, 1.0f, 1.0f, 1.0f); // Diffuse light color
-    shader.SetUniform4f("u_SpotLight.specular", 1.0f, 1.0f, 1.0f, 1.0f); // Specular light color
-    shader.SetUniformFloat("u_SpotLight.constant", pointLightAttenuationFactors.x);
-    shader.SetUniformFloat("u_SpotLight.linear", pointLightAttenuationFactors.y);
-    shader.SetUniformFloat("u_SpotLight.quadratic", pointLightAttenuationFactors.z);
-    shader.SetUniformFloat("u_SpotLight.cutOff", glm::cos(glm::radians(5.0f))); // Inner cut-off angle for the spot light
-    shader.SetUniformFloat("u_SpotLight.outerCutOff", glm::cos(glm::radians(17.5f))); // Outer cut-off angle for the spot light
 }
 
 void RenderMesh(const AssetLoader::Mesh& mesh, const Shader& shader, const glm::mat4& transform)
@@ -536,64 +438,82 @@ std::shared_ptr<AssetLoader::SimpleMesh> CreateQuad()
     glm::vec2 uv2(0.0, 0.0);
     glm::vec2 uv3(1.0, 0.0);
     glm::vec2 uv4(1.0, 1.0);
-    // normal vector
-    glm::vec3 nm(0.0, 0.0, 1.0);
-
-    glm::vec3 edge1 = pos2 - pos1;
-    glm::vec3 edge2 = pos3 - pos1;
-    glm::vec2 deltaUV1 = uv2 - uv1;
-    glm::vec2 deltaUV2 = uv3 - uv1;
-
-    float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
-
-    glm::vec3 tangent1, bitangent1;
-    glm::vec3 tangent2, bitangent2;
-
-    // triangle 1
-    tangent1.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
-    tangent1.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
-    tangent1.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
-
-    bitangent1.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
-    bitangent1.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
-    bitangent1.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
-
-    // triangle 2
-    edge1 = pos3 - pos1;
-    edge2 = pos4 - pos1;
-    deltaUV1 = uv3 - uv1;
-    deltaUV2 = uv4 - uv1;
-
-    f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
-
-    tangent2.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
-    tangent2.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
-    tangent2.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
-
-    bitangent2.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
-    bitangent2.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
-    bitangent2.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
 
     float quadVertices[] = {
-        // positions            // normal         // texcoords  // tangent                          // bitangent
-        pos1.x, pos1.y, pos1.z, nm.x, nm.y, nm.z, uv1.x, uv1.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
-        pos2.x, pos2.y, pos2.z, nm.x, nm.y, nm.z, uv2.x, uv2.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
-        pos3.x, pos3.y, pos3.z, nm.x, nm.y, nm.z, uv3.x, uv3.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
+        // positions            // texcoords 
+        pos1.x, pos1.y, pos1.z, uv1.x, uv1.y,
+        pos2.x, pos2.y, pos2.z, uv2.x, uv2.y,
+        pos3.x, pos3.y, pos3.z, uv3.x, uv3.y,
 
-        pos1.x, pos1.y, pos1.z, nm.x, nm.y, nm.z, uv1.x, uv1.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z,
-        pos3.x, pos3.y, pos3.z, nm.x, nm.y, nm.z, uv3.x, uv3.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z,
-        pos4.x, pos4.y, pos4.z, nm.x, nm.y, nm.z, uv4.x, uv4.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z
+        pos1.x, pos1.y, pos1.z, uv1.x, uv1.y,
+        pos3.x, pos3.y, pos3.z, uv3.x, uv3.y,
+        pos4.x, pos4.y, pos4.z, uv4.x, uv4.y
     };
 
-    const int stride = 14 * sizeof(float);
+    const int stride = 5 * sizeof(float);
     int size = sizeof(quadVertices);
     int count = size / stride;
     std::shared_ptr<AssetLoader::SimpleMesh> simpleMesh = std::make_shared<AssetLoader::SimpleMesh>(quadVertices, size, count);
     simpleMesh->SetVertexAttribute(0, 3, GL_FLOAT, false, stride, nullptr);
-    simpleMesh->SetVertexAttribute(1, 3, GL_FLOAT, false, stride, (void*)(3 * sizeof(float)));
-    simpleMesh->SetVertexAttribute(2, 2, GL_FLOAT, false, stride, (void*)(6 * sizeof(float)));
-    simpleMesh->SetVertexAttribute(3, 3, GL_FLOAT, false, stride, (void*)(8 * sizeof(float)));
-    simpleMesh->SetVertexAttribute(4, 3, GL_FLOAT, false, stride, (void*)(11 * sizeof(float)));
+    simpleMesh->SetVertexAttribute(1, 2, GL_FLOAT, false, stride, (void*)(3 * sizeof(float)));
 
     return simpleMesh;
+}
+
+std::shared_ptr<AssetLoader::SimpleMesh> CreateCube()
+{
+    float cubeVertices[] = {
+        // back face
+        -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+         1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
+         1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right         
+         1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
+        -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+        -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f, // top-left
+        // front face
+        -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+         1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
+         1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+         1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+        -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
+        -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+        // left face
+        -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
+        -1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
+        -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
+        -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
+        -1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-right
+        -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
+        // right face
+         1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
+         1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
+         1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right         
+         1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
+         1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
+         1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left     
+         // bottom face
+         -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
+          1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-left
+          1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
+          1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
+         -1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 0.0f, // bottom-right
+         -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
+         // top face
+         -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
+          1.0f,  1.0f , 1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
+          1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right     
+          1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
+         -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
+         -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left        
+    };
+
+    const int cubeStride = 8 * sizeof(float);
+    int cubeSize = sizeof(cubeVertices);
+    int cubeVerticesCount = cubeSize / cubeStride;
+    std::shared_ptr<AssetLoader::SimpleMesh> cubeMesh = std::make_shared<AssetLoader::SimpleMesh>(cubeVertices, sizeof(cubeVertices), cubeVerticesCount);
+    cubeMesh->SetVertexAttribute(0, 3, GL_FLOAT, false, cubeStride, nullptr);
+    cubeMesh->SetVertexAttribute(1, 3, GL_FLOAT, false, cubeStride, (void*)(3 * sizeof(float)));
+    cubeMesh->SetVertexAttribute(2, 2, GL_FLOAT, false, cubeStride, (void*)(6 * sizeof(float)));
+
+    return cubeMesh;
 }

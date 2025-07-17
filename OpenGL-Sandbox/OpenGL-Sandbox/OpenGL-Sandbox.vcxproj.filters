@@ -60,6 +60,10 @@
     <None Include="resources\shaders\PointShadowMappingVertex.glsl" />
     <None Include="resources\shaders\PointShadowMappingGeometry.glsl" />
     <None Include="resources\shaders\PointShadowMappingFragment.glsl" />
+    <None Include="resources\shaders\LightingVertex.glsl" />
+    <None Include="resources\shaders\LightingFragment.glsl" />
+    <None Include="resources\shaders\HDRVertex.glsl" />
+    <None Include="resources\shaders\HDRFragment.glsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Shader.h">
